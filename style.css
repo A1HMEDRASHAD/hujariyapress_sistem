@@ -1,9 +1,9 @@
 /* ==========================================================================
    البوابة التحريرية الذكية — حُجرية بريس (Hujariya Press Editorial Portal)
    طابع الجزيرة الحديث + الهوية القرمزية (#b80d38) + تصميم تطبيقات الجوال:
-   - شاشة فحص جلسة فورية تمنع وميض تسجيل الدخول
-   - شريط تنقل سفلي عائم (Bottom Navigation Dock) مع زر (+ نشر جديد) في المنتصف
-   - كبسولة بحث ذكي فوري + دعم إدراج الصور المتعددة وسط المقال بين الفقرات
+   - شريط سفلي عائم بـ 4 عناصر متوازنة (المنشورات | الملاحظات | + نشر جديد | حسابي)
+   - عرض الكلمات كاملة وواضحة دون أي قص (No Text Truncation)
+   - بقاء أيقونة (حسابي) نشطة ومضيئة عند التنقل بين حسابي أو الإعدادات أو الكادر
    ========================================================================== */
 
 @font-face {
@@ -169,7 +169,6 @@ button.is-loading {
   opacity: 0.92;
 }
 
-/* شاشة معالجة الجلسة لمنع وميض تسجيل الدخول */
 .auth-session-loader {
   padding: 38px 20px;
   text-align: center;
@@ -560,35 +559,35 @@ button.is-loading {
   box-shadow: var(--crimson-shadow-sm);
 }
 
-/* ==================== 3. شريط التنقل السفلي العائم (App-Style Bottom Dock) ==================== */
+/* ==================== 3. شريط التنقل السفلي العائم والمنظم (4 عناصر متوازنة بدون قص للنصوص) ==================== */
 .portal-bottom-dock {
   position: fixed;
-  bottom: 12px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 95;
-  width: min(620px, calc(100vw - 20px));
-  background: rgba(255, 255, 255, 0.95);
+  width: min(480px, calc(100vw - 22px));
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1.5px solid var(--crimson-border-soft);
   border-radius: 999px;
-  box-shadow: var(--crimson-shadow-lg), 0 6px 20px rgba(0, 0, 0, 0.08);
-  padding: 5px 10px;
+  box-shadow: var(--crimson-shadow-lg), 0 6px 22px rgba(0, 0, 0, 0.09);
+  padding: 6px 12px;
 }
 
 .bottom-dock-inner {
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .dock-tab-btn {
   flex: 1;
   background: transparent;
   border: none;
-  border-radius: 99px;
+  border-radius: 999px;
   padding: 6px 8px;
   display: flex;
   flex-direction: column;
@@ -597,7 +596,7 @@ button.is-loading {
   gap: 2px;
   color: var(--text-muted);
   font-weight: 800;
-  min-width: 0;
+  min-width: 64px;
 }
 
 .dock-tab-btn .material-symbols-rounded {
@@ -606,19 +605,21 @@ button.is-loading {
 }
 
 .dock-label {
-  font-size: 0.7rem;
+  font-size: 0.73rem;
+  font-weight: 800;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  line-height: 1.2;
 }
 
-.dock-tab-btn.active {
+/* تفعيل الإضاءة القرمزية للتبويب النشط، مع إبقاء زر (حسابي) مضيئاً عند فتح الإعدادات أو الكادر */
+.dock-tab-btn.active,
+.portal-app-shell:has(#account-hub-switcher:not(.hidden)) #unified-account-dock-btn {
   color: var(--brand-red);
   background-color: var(--crimson-soft-bg);
 }
 
-.dock-tab-btn.active .material-symbols-rounded {
+.dock-tab-btn.active .material-symbols-rounded,
+.portal-app-shell:has(#account-hub-switcher:not(.hidden)) #unified-account-dock-btn .material-symbols-rounded {
   color: var(--brand-red);
   transform: translateY(-1px);
 }
@@ -649,10 +650,11 @@ button.is-loading {
   background-color: var(--brand-red);
 }
 
-/* زر (+ نشر جديد) البارز في منتصف الشريط السفلي */
+/* زر (+ نشر جديد) الأوسط البارز بحجم متناسق */
 .dock-center-create-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   padding: 10px 18px;
   background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-dark) 100%);
@@ -672,13 +674,13 @@ button.is-loading {
 }
 
 .dock-center-create-btn .material-symbols-rounded {
-  font-size: 21px;
+  font-size: 20px;
 }
 
 /* ==================== 4. مساحة العمل، البحث الذكي، والإحصائيات ==================== */
 .portal-workspace {
   padding-top: 20px;
-  padding-bottom: 105px; /* مساحة مريحة للشريط السفلي العائم */
+  padding-bottom: 105px;
 }
 
 .autosave-restore-banner {
@@ -958,7 +960,7 @@ button.is-loading {
   flex-wrap: wrap;
 }
 
-/* ==================== 5. بوابة «حسابي والإعدادات» الموحدة (البوكسات الأنيقة) ==================== */
+/* ==================== 5. بوابة «حسابي والإعدادات والكادر» الموحدة (البوكسات الأنيقة) ==================== */
 .account-hub-switcher {
   display: flex;
   align-items: center;
@@ -1507,7 +1509,6 @@ button.is-loading {
   text-decoration: underline;
 }
 
-/* شكل الصور المدمجة بين الفقرات داخل المحرر */
 .rich-editor-area figure.inline-article-figure {
   margin: 14px auto;
   background-color: var(--bg-page);
@@ -1755,7 +1756,17 @@ button.is-loading {
   .hide-sm {
     display: none !important;
   }
-  .dock-center-create-btn span:not(.material-symbols-rounded) {
+}
+
+@media (max-width: 420px) {
+  .portal-bottom-dock {
+    padding: 5px 8px;
+  }
+  .dock-center-create-btn {
+    padding: 9px 14px;
     font-size: 0.78rem;
+  }
+  .dock-label {
+    font-size: 0.7rem;
   }
 }
