@@ -3,241 +3,1777 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>غرفة الأخبار | حُجرية بريس</title>
+  <title>غرفة الأخبار | حُجرية بريس — Hujariya Press Newsroom</title>
   <meta name="robots" content="noindex, nofollow">
-  
+  <meta name="theme-color" content="#b80d38" id="newsroom-theme-color">
+
+  <!-- أيقونة غرفة الأخبار القرمزية -->
+  <link rel="icon" id="newsroom-favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%23b80d38%22/><text x=%2250%%22 y=%2258%%22 font-size=%2262%22 fill=%22%23ffffff%22 font-family=%22Almarai,sans-serif%22 font-weight=%22800%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>ح</text></svg>">
+
+  <!-- الخطوط الرسمية المعتمدة (Almarai & Alexandria) + أيقونات Google Material Symbols -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@22,500,0,0" rel="stylesheet">
-  
-  <link rel="stylesheet" href="./admin-style.css">
-</head>
-<body class="newsroom-body">
 
-  <!-- ==================== 1. نافذة التوقيع الإجبارية (ميثاق الشرف) ==================== -->
-  <div id="pledge-overlay" class="pledge-overlay hidden">
-    <div class="pledge-modal">
-      <div class="pledge-header">
-        <span class="material-symbols-rounded">gavel</span>
-        <h2>ميثاق الشرف الصحفي</h2>
-      </div>
-      <div class="pledge-content">
-        <p class="pledge-warning">يرجى قراءة الميثاق والموافقة عليه للاستمرار في استخدام غرفة الأخبار.</p>
-        <div id="pledge-text-box" class="pledge-scroll-box">
-          <!-- سيتم جلب نص الميثاق من قاعدة البيانات -->
-          جاري تحميل الميثاق...
+  <!-- ملف المظهر الكامل لغرفة الأخبار -->
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- =====================================================================
+       1. بوابة الدخول المزدوجة (الدخول السريع بـ PIN + الدخول بالهوية الصحفية HP أو اسم المستخدم)
+       ===================================================================== -->
+  <section id="auth-gateway" class="auth-gateway">
+    <div class="auth-card-wrapper">
+
+      <!-- الهوية العلوية للبوابة -->
+      <div class="auth-brand-header">
+        <div class="auth-logo-capsule" id="auth-logo-capsule">
+          <img id="auth-logo-img" src="" alt="حُجرية بريس" class="auth-logo-img hidden">
+          <span id="auth-logo-letter" class="auth-logo-letter">ح</span>
+        </div>
+        <div class="auth-brand-titles">
+          <span class="auth-kicker">مؤسسة RAWI-YE.COM الإعلامية</span>
+          <h1 id="auth-site-title">غرفة الأخبار — حُجرية بريس</h1>
         </div>
       </div>
-      <div class="pledge-signature-area">
-        <label>ارسم توقيعك هنا للموافقة:</label>
-        <canvas id="signature-pad" width="400" height="150" class="signature-canvas"></canvas>
-        <div class="signature-actions">
-          <button type="button" id="clear-signature-btn" class="btn-clear-sig">مسح وإعادة الرسم</button>
-          <button type="button" id="submit-pledge-btn" class="btn-submit-sig">أوافق وأتعهد بالالتزام</button>
+
+      <!-- (أ) بطاقة الدخول السريع برمز PIN (تظهر تلقائياً للصحفي المسجل على جهازه) -->
+      <div id="pin-login-panel" class="auth-panel hidden">
+        <div class="pin-user-welcome">
+          <img id="pin-user-avatar" src="" alt="" class="pin-user-avatar">
+          <div class="pin-user-meta">
+            <div class="pin-user-name-row">
+              <strong id="pin-user-name">مرحباً بك</strong>
+              <span id="pin-user-verified" class="material-symbols-rounded verified-icon hidden" translate="no">verified</span>
+            </div>
+            <span id="pin-user-press-id" class="press-id-chip" dir="ltr">HP10000</span>
+          </div>
+        </div>
+
+        <p class="auth-instruction">أدخل رمز الدخول السريع المكون من 4 أرقام</p>
+
+        <form id="pin-login-form" class="pin-form" autocomplete="off">
+          <input
+            type="password"
+            id="pin-code-input"
+            class="pin-code-input"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="4"
+            placeholder="••••"
+            dir="ltr"
+            required
+          >
+          <button type="submit" class="btn-crimson-full">
+            <span class="material-symbols-rounded" translate="no">lock_open</span>
+            <span>فتح غرفة الأخبار</span>
+          </button>
+        </form>
+
+        <button type="button" id="switch-to-standard-login-btn" class="btn-text-link">
+          <span class="material-symbols-rounded" translate="no">swap_horiz</span>
+          <span>الدخول بحساب آخر أو بكلمة المرور</span>
+        </button>
+      </div>
+
+      <!-- (ب) بطاقة الدخول القياسي (الهوية الصحفية HP##### أو اسم المستخدم أو البريد + كلمة المرور) -->
+      <div id="standard-login-panel" class="auth-panel">
+        <p class="auth-instruction">سجل دخولك باستخدام <strong>الهوية الصحفية (HP)</strong> أو اسم المستخدم أو البريد الإلكتروني</p>
+
+        <form id="standard-login-form" class="standard-auth-form">
+          <div class="nr-field">
+            <label for="login-identifier-input">الهوية الصحفية (مثال: HP10001) أو اسم المستخدم أو البريد</label>
+            <div class="input-with-icon">
+              <span class="material-symbols-rounded" translate="no">badge</span>
+              <input
+                type="text"
+                id="login-identifier-input"
+                placeholder="HP10001 أو username أو email"
+                autocomplete="username"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="nr-field">
+            <label for="login-password-input">كلمة المرور</label>
+            <div class="input-with-icon">
+              <span class="material-symbols-rounded" translate="no">key</span>
+              <input
+                type="password"
+                id="login-password-input"
+                placeholder="أدخل كلمة المرور"
+                autocomplete="current-password"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="nr-field">
+            <label for="login-quick-pin-setup">رمز الدخول السريع PIN لهذا الجهاز (4 أرقام - اختياري)</label>
+            <div class="input-with-icon">
+              <span class="material-symbols-rounded" translate="no">pin</span>
+              <input
+                type="password"
+                id="login-quick-pin-setup"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="4"
+                placeholder="مثال: 1234 للدخول السريع مستقبلاً"
+                dir="ltr"
+              >
+            </div>
+          </div>
+
+          <button type="submit" id="standard-login-submit-btn" class="btn-crimson-full">
+            <span class="material-symbols-rounded" translate="no">login</span>
+            <span>دخول إلى غرفة الأخبار</span>
+          </button>
+        </form>
+      </div>
+
+      <div id="auth-error-box" class="auth-error-box hidden" role="alert"></div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       2. واجهة غرفة الأخبار الرئيسية (Newsroom App Container)
+       ===================================================================== -->
+  <div id="newsroom-app" class="newsroom-app hidden">
+
+    <!-- شريط تنبيه تحديث ميثاق الشرف غير المعطّل للعمل (يظهر للصحفيين المعتمدين عند صدور نسخة ميثاق جديدة) -->
+    <div id="charter-update-alert-bar" class="charter-update-bar hidden">
+      <div class="nr-container charter-bar-inner">
+        <div class="charter-bar-text">
+          <span class="material-symbols-rounded" translate="no">gavel</span>
+          <span>تم تحديث <strong>ميثاق الشرف الصحفي</strong> للمنصة. يمكنك متابعة عملك ونشر الأخبار العاجلة كالمعتاد، مع ضرورة قراءة التحديث وتوقيعه لاعتماده في ملفك.</span>
+        </div>
+        <button type="button" id="open-updated-charter-btn" class="btn-charter-bar">
+          <span class="material-symbols-rounded" translate="no">draw</span>
+          <span>قراءة وتوقيع التحديث</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- شريط تنبيه الحالة القانونية (للصحفي الجديد الذي لم يُعتمد توقيعه الأول بعد) -->
+    <div id="pending-pledge-status-bar" class="pending-pledge-bar hidden">
+      <div class="nr-container charter-bar-inner">
+        <div class="charter-bar-text">
+          <span class="material-symbols-rounded" translate="no">hourglass_top</span>
+          <span id="pending-pledge-status-text">توقيعك على ميثاق الشرف الصحفي قيد مراجعة واعتماد الإدارة. ستتمكن من النشر فور اعتماده.</span>
+        </div>
+        <button type="button" id="reopen-pledge-modal-btn" class="btn-charter-bar">
+          <span class="material-symbols-rounded" translate="no">visibility</span>
+          <span>عرض الميثاق والتوقيع</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================================
+         الهيدر العلوي لغرفة الأخبار
+         =================================================================== -->
+    <header class="nr-top-header">
+      <div class="nr-container nr-header-row">
+
+        <!-- يمين الهيدر: الشعار واسم غرفة الأخبار -->
+        <div class="nr-brand-box" id="nr-brand-home-trigger" role="button" tabindex="0">
+          <span id="nr-header-logo-capsule" class="nr-logo-capsule">
+            <img id="nr-header-logo-img" src="" alt="" class="nr-header-logo-img hidden">
+            <span id="nr-header-logo-fallback" class="nr-logo-fallback">ح</span>
+          </span>
+          <div class="nr-brand-titles">
+            <div class="nr-brand-main-row">
+              <strong id="nr-header-title">غرفة الأخبار</strong>
+              <span class="live-sync-dot" title="متصل ومزامن لحظياً"></span>
+            </div>
+            <span id="nr-header-subtitle" class="nr-brand-sub">حُجرية بريس | Hujariya Press</span>
+          </div>
+        </div>
+
+        <!-- يسار الهيدر: بطاقة الصحفي النشط + الهوية الصحفية HP + رابط الموقع العام + قفل/خروج -->
+        <div class="nr-header-actions">
+          <a href="https://www.hujariyapress.rawi-ye.com/" target="_blank" rel="noopener" class="nr-icon-pill" title="فتح الموقع العام">
+            <span class="material-symbols-rounded" translate="no">public</span>
+            <span class="hide-sm">الموقع العام</span>
+          </a>
+
+          <button type="button" id="header-active-user-pill" class="nr-user-pill" title="فتح ملفي وهويتي الصحفية">
+            <img id="header-user-avatar" src="" alt="" class="nr-user-avatar">
+            <div class="nr-user-text">
+              <div class="nr-user-name-line">
+                <strong id="header-user-name">الصحفي</strong>
+                <span id="header-user-verified" class="material-symbols-rounded verified-icon hidden" translate="no">verified</span>
+              </div>
+              <span id="header-user-press-id" class="press-id-mini" dir="ltr">HP10000</span>
+            </div>
+          </button>
+
+          <button type="button" id="lock-pin-session-btn" class="nr-icon-btn" title="قفل الشاشة السريع برمز PIN">
+            <span class="material-symbols-rounded" translate="no">lock</span>
+          </button>
+
+          <button type="button" id="logout-session-btn" class="nr-icon-btn danger-hover" title="تسجيل الخروج">
+            <span class="material-symbols-rounded" translate="no">logout</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ===================================================================
+         المساحة الرئيسية لغرفة الأخبار (الأقسام الخمسة الكبرى)
+         =================================================================== -->
+    <main class="nr-container nr-main-workspace">
+
+      <!-- =================================================================
+           (1) واجهة غرفة الأخبار الرئيسية (الإحصائيات الذكية + إدارة الأخبار والتقارير)
+           ================================================================= -->
+      <section id="view-newsroom" class="nr-view">
+
+        <!-- شريط نبض اليوم والإحصائيات الذكية -->
+        <div class="insights-strip-grid">
+          <div class="insight-stat-card">
+            <div class="insight-icon-box crimson-bg">
+              <span class="material-symbols-rounded" translate="no">newspaper</span>
+            </div>
+            <div class="insight-meta">
+              <span>الأخبار والتقارير المنشورة</span>
+              <strong id="metric-published-count">0</strong>
+            </div>
+          </div>
+
+          <div class="insight-stat-card">
+            <div class="insight-icon-box amber-bg">
+              <span class="material-symbols-rounded" translate="no">pending_actions</span>
+            </div>
+            <div class="insight-meta">
+              <span>بانتظار الاعتماد</span>
+              <strong id="metric-pending-count">0</strong>
+            </div>
+          </div>
+
+          <div class="insight-stat-card">
+            <div class="insight-icon-box slate-bg">
+              <span class="material-symbols-rounded" translate="no">edit_note</span>
+            </div>
+            <div class="insight-meta">
+              <span>المسودات المؤقتة</span>
+              <strong id="metric-drafts-count">0</strong>
+            </div>
+          </div>
+
+          <div class="insight-stat-card">
+            <div class="insight-icon-box blue-bg">
+              <span class="material-symbols-rounded" translate="no">trending_up</span>
+            </div>
+            <div class="insight-meta">
+              <span>إجمالي قراءات المواد</span>
+              <strong id="metric-total-views">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- تنبيه استئناف المسودة المحفوظة تلقائياً في الاستديو (إن وجدت) -->
+        <div id="autosave-resume-banner" class="autosave-resume-banner hidden">
+          <div class="autosave-banner-info">
+            <span class="material-symbols-rounded" translate="no">history_edu</span>
+            <div>
+              <strong>لديك مادة صحفية قيد الكتابة محفوظة تلقائياً</strong>
+              <p id="autosave-resume-title">يمكنك استئناف الكتابة من نفس المرحلة التي توقفت عندها.</p>
+            </div>
+          </div>
+          <div class="autosave-banner-actions">
+            <button type="button" id="resume-autosave-btn" class="btn-crimson-sm">
+              <span class="material-symbols-rounded" translate="no">play_arrow</span>
+              <span>استئناف الكتابة</span>
+            </button>
+            <button type="button" id="discard-autosave-btn" class="btn-outline-sm">تجاهل</button>
+          </div>
+        </div>
+
+        <!-- شريط التصفية والبحث الذكي في الأخبار والتقارير -->
+        <div class="nr-panel-card">
+          <div class="nr-section-header">
+            <div class="nr-title-with-pillar">
+              <span class="aj-crimson-pillar"></span>
+              <h2>الأخبار والتقارير الصحفية</h2>
+              <span id="posts-total-badge" class="count-pill">0</span>
+            </div>
+
+            <button type="button" id="top-new-article-btn" class="btn-crimson-sm">
+              <span class="material-symbols-rounded" translate="no">add_circle</span>
+              <span>صياغة خبر جديد</span>
+            </button>
+          </div>
+
+          <div class="nr-filters-toolbar">
+            <div class="nr-search-box">
+              <span class="material-symbols-rounded" translate="no">manage_search</span>
+              <input
+                type="search"
+                id="newsroom-search-input"
+                placeholder="ابحث بالعنوان، الكاتب، الهوية الصحفية (HP)، القسم، أو الوسم..."
+                autocomplete="off"
+              >
+              <button type="button" id="clear-nr-search-btn" class="icon-clear-btn hidden">
+                <span class="material-symbols-rounded" translate="no">close</span>
+              </button>
+            </div>
+
+            <div class="nr-status-chips" id="newsroom-status-filters">
+              <button type="button" class="filter-chip active" data-status-filter="all">الكل</button>
+              <button type="button" class="filter-chip" data-status-filter="published">منشور ومفعل</button>
+              <button type="button" class="filter-chip" data-status-filter="pending">بانتظار الاعتماد</button>
+              <button type="button" class="filter-chip" data-status-filter="draft">المسودات المؤقتة</button>
+              <button type="button" class="filter-chip" data-status-filter="breaking">الأخبار العاجلة</button>
+              <button type="button" class="filter-chip" data-status-filter="video">المرئيات والريلز</button>
+            </div>
+          </div>
+
+          <!-- قائمة المقالات مع التحميل التدريجي السريع -->
+          <div id="newsroom-posts-list" class="nr-posts-grid">
+            <div class="nr-empty-state">جاري تحميل المواد الصحفية...</div>
+          </div>
+
+          <div id="nr-posts-load-more-wrap" class="nr-load-more-wrap hidden">
+            <button type="button" id="nr-load-more-posts-btn" class="btn-outline-crimson">
+              <span>عرض المزيد من الأخبار</span>
+              <span class="material-symbols-rounded" translate="no">expand_more</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =================================================================
+           (2) واجهة استديو صياغة الأخبار المرحلي الكامل (Full-Page 4-Step Studio)
+           ================================================================= -->
+      <section id="view-studio" class="nr-view hidden">
+        <div class="studio-fullpage-shell">
+
+          <!-- هيدر الاستديو العلوي -->
+          <div class="studio-top-bar">
+            <button type="button" id="exit-studio-back-btn" class="btn-outline-sm">
+              <span class="material-symbols-rounded" translate="no">arrow_forward</span>
+              <span>العودة لغرفة الأخبار</span>
+            </button>
+
+            <div class="studio-head-center">
+              <span class="studio-mode-badge" id="studio-mode-badge">استديو الصحافة والنشر</span>
+              <h2 id="studio-main-heading">صياغة مادة صحفية جديدة</h2>
+            </div>
+
+            <div class="studio-autosave-box">
+              <span class="material-symbols-rounded autosave-icon" translate="no">cloud_done</span>
+              <span id="studio-autosave-status">الحفظ التلقائي مفعل</span>
+              <button type="button" id="reset-studio-form-btn" class="btn-text-danger" title="تفريغ الاستديو والبدء من جديد">
+                <span class="material-symbols-rounded" translate="no">restart_alt</span>
+                <span>تفريغ</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- شريط المراحل الأربع التفاعلي (4-Step Wizard Stepper) -->
+          <div class="studio-stepper-bar" role="tablist" aria-label="مراحل تحرير الخبر">
+            <button type="button" class="studio-step-tab active" data-step-target="1">
+              <span class="step-num">1</span>
+              <div class="step-label-box">
+                <strong>العنوان والموجز</strong>
+                <small>الأساسيات ونوع الخبر</small>
+              </div>
+            </button>
+
+            <button type="button" class="studio-step-tab" data-step-target="2">
+              <span class="step-num">2</span>
+              <div class="step-label-box">
+                <strong>الأقسام والوسائط</strong>
+                <small>الصورة، الفيديو، والوسوم</small>
+              </div>
+            </button>
+
+            <button type="button" class="studio-step-tab" data-step-target="3">
+              <span class="step-num">3</span>
+              <div class="step-label-box">
+                <strong>تحرير المقال والصور</strong>
+                <small>المساحة الكاملة للكتابة</small>
+              </div>
+            </button>
+
+            <button type="button" class="studio-step-tab" data-step-target="4">
+              <span class="step-num">4</span>
+              <div class="step-label-box">
+                <strong>المعاينة والاعتماد</strong>
+                <small>المراجعة النهائية والنشر</small>
+              </div>
+            </button>
+          </div>
+
+          <form id="studio-master-form" novalidate>
+            <input type="hidden" id="studio-editing-post-id" value="">
+
+            <!-- =========================================================
+                 المرحلة 1: العنوان، الموجز، ونوع المادة الصحفية
+                 ========================================================= -->
+            <div id="studio-stage-1" class="studio-stage-pane">
+              <div class="stage-intro-banner">
+                <span class="material-symbols-rounded" translate="no">looks_one</span>
+                <div>
+                  <h3>المرحلة الأولى: تحديد قالب المادة، العنوان الرئيسي، والموجز الإخباري</h3>
+                  <p>كل حرف تكتبه هنا يُحفظ تلقائياً في ذاكرة المتصفح حتى لو غادرت الصفحة لنسخ معلومة.</p>
+                </div>
+              </div>
+
+              <!-- اختيار القالب السريع للمادة -->
+              <div class="nr-field">
+                <label>قالب المادة الصحفية</label>
+                <div class="studio-template-pills" id="studio-template-selector">
+                  <button type="button" class="template-pill active" data-template-type="standard">
+                    <span class="material-symbols-rounded" translate="no">article</span>
+                    <span>خبر أو تقرير صحفي</span>
+                  </button>
+                  <button type="button" class="template-pill" data-template-type="pulse">
+                    <span class="material-symbols-rounded" translate="no">bolt</span>
+                    <span>خبر سريع (موجز النبض)</span>
+                  </button>
+                  <button type="button" class="template-pill" data-template-type="breaking">
+                    <span class="material-symbols-rounded" translate="no">campaign</span>
+                    <span>خبر عاجل بالشريط القرمزي</span>
+                  </button>
+                  <button type="button" class="template-pill" data-template-type="shorts">
+                    <span class="material-symbols-rounded" translate="no">smart_display</span>
+                    <span>فيديو / ريلز مرئي</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- العنوان الرئيسي مع العداد الحي -->
+              <div class="nr-field">
+                <div class="field-label-row">
+                  <label for="studio-title-input">العنوان الصحفي الرئيسي <span class="req-star">*</span></label>
+                  <span id="studio-title-counter" class="char-counter" dir="ltr">0 / 110</span>
+                </div>
+                <input
+                  type="text"
+                  id="studio-title-input"
+                  class="studio-headline-input"
+                  maxlength="110"
+                  placeholder="اكتب عنواناً صحفياً قوياً، دقيقاً، ومباشراً..."
+                  required
+                >
+              </div>
+
+              <!-- الملخص الإخباري (الزبدة) مع العداد الحي -->
+              <div class="nr-field">
+                <div class="field-label-row">
+                  <label for="studio-summary-input">الموجز الإخباري (الزبدة — يظهر في مقدمة التقرير ومحركات البحث)</label>
+                  <span id="studio-summary-counter" class="char-counter" dir="ltr">0 / 220</span>
+                </div>
+                <textarea
+                  id="studio-summary-input"
+                  class="studio-summary-textarea"
+                  rows="3"
+                  maxlength="220"
+                  placeholder="لخّص جوهر الخبر في سطرين واضحين يجذبان القارئ ومحركات البحث..."
+                ></textarea>
+              </div>
+
+              <!-- خيارات البروز والظهور في الصفحة الرئيسية -->
+              <div class="studio-flags-grid">
+                <label class="flag-toggle-card">
+                  <input type="checkbox" id="studio-flag-featured">
+                  <div class="flag-card-body">
+                    <span class="material-symbols-rounded" translate="no">star</span>
+                    <div>
+                      <strong>تثبيت في التغطية الرئيسية (Hero)</strong>
+                      <small>يظهر كخبر أول كبير في واجهة الموقع</small>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="flag-toggle-card">
+                  <input type="checkbox" id="studio-flag-quick">
+                  <div class="flag-card-body">
+                    <span class="material-symbols-rounded" translate="no">bolt</span>
+                    <div>
+                      <strong>إدراج في شريط «موجز النبض»</strong>
+                      <small>يظهر في بطاقات الأخبار السريعة</small>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="flag-toggle-card">
+                  <input type="checkbox" id="studio-flag-breaking">
+                  <div class="flag-card-body">
+                    <span class="material-symbols-rounded" translate="no">sensors</span>
+                    <div>
+                      <strong>تفعيل في شريط «الأخبار العاجلة»</strong>
+                      <small>يمر في الشريط القرمزي العاجل</small>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- مدة بقاء الخبر في شريط العاجل -->
+              <div id="studio-breaking-duration-box" class="nr-field hidden" style="margin-top:14px;">
+                <label for="studio-breaking-hours">مدة بقاء الخبر في الشريط العاجل قبل اختفائه تلقائياً</label>
+                <select id="studio-breaking-hours" class="nr-select">
+                  <option value="1">ساعة واحدة</option>
+                  <option value="3" selected>3 ساعات (موصى به)</option>
+                  <option value="6">6 ساعات</option>
+                  <option value="12">12 ساعة</option>
+                  <option value="24">24 ساعة</option>
+                </select>
+              </div>
+
+              <div class="studio-stage-footer">
+                <span>المرحلة 1 من 4</span>
+                <button type="button" class="btn-crimson-lg" data-goto-step="2">
+                  <span>التالي: الأقسام والوسائط</span>
+                  <span class="material-symbols-rounded" translate="no">arrow_back</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- =========================================================
+                 المرحلة 2: الأقسام، الصورة البارزة، الفيديو، والوسوم الموحدة
+                 ========================================================= -->
+            <div id="studio-stage-2" class="studio-stage-pane hidden">
+              <div class="stage-intro-banner">
+                <span class="material-symbols-rounded" translate="no">looks_two</span>
+                <div>
+                  <h3>المرحلة الثانية: التصنيف التحريري، الوسائط البصرية، والوسوم الموحدة</h3>
+                  <p>اختر القسم الرئيسي والتصنيف الفرعي، وارفع الصورة البارزة أو رابط الفيديو، وحدد حتى 3 وسوم.</p>
+                </div>
+              </div>
+
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="studio-primary-category">القسم الرئيسي للمادة <span class="req-star">*</span></label>
+                  <select id="studio-primary-category" class="nr-select" required></select>
+                </div>
+
+                <div class="nr-field">
+                  <label for="studio-subcategory-select">التصنيف الفرعي الدقيق</label>
+                  <select id="studio-subcategory-select" class="nr-select">
+                    <option value="">— بدون تصنيف فرعي —</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- إمكانية ربط الخبر بأقسام إضافية -->
+              <div class="nr-field">
+                <label>ربط المادة بأقسام إضافية مشتركة (اختياري)</label>
+                <div id="studio-multi-categories-chips" class="multi-cats-grid"></div>
+              </div>
+
+              <!-- الصورة البارزة الرئيسية للخبر -->
+              <div class="studio-media-panel">
+                <div class="nr-field">
+                  <label>الصورة البارزة الرئيسية للخبر (رفع مباشر أو رابط)</label>
+                  <div class="media-upload-row">
+                    <label for="studio-featured-file-input" class="btn-crimson-sm file-upload-label">
+                      <span class="material-symbols-rounded" translate="no">upload_file</span>
+                      <span id="studio-featured-upload-label">رفع صورة من الجهاز</span>
+                    </label>
+                    <input type="file" id="studio-featured-file-input" accept="image/*" class="hidden">
+
+                    <input
+                      type="url"
+                      id="studio-featured-url-input"
+                      class="nr-input"
+                      placeholder="أو الصق رابط الصورة المباشر هنا https://..."
+                      dir="ltr"
+                    >
+                  </div>
+                </div>
+
+                <div id="studio-featured-preview-wrap" class="featured-preview-wrap hidden">
+                  <img id="studio-featured-preview-img" src="" alt="معاينة الصورة البارزة">
+                  <button type="button" id="remove-featured-img-btn" class="btn-remove-media">
+                    <span class="material-symbols-rounded" translate="no">delete</span>
+                    <span>إزالة الصورة</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- إعدادات الفيديو والريلز (اختياري) -->
+              <div class="studio-media-panel">
+                <div class="studio-three-cols">
+                  <div class="nr-field">
+                    <label for="studio-video-type">نوع الفيديو المرفق</label>
+                    <select id="studio-video-type" class="nr-select">
+                      <option value="none">بدون فيديو</option>
+                      <option value="landscape">فيديو تقليدي عريض (16:9)</option>
+                      <option value="short_vertical">فيديو قصير عمودي / ريلز (9:16)</option>
+                    </select>
+                  </div>
+
+                  <div class="nr-field">
+                    <label for="studio-video-url">رابط الفيديو (YouTube أو Shorts أو MP4)</label>
+                    <input
+                      type="url"
+                      id="studio-video-url"
+                      class="nr-input"
+                      placeholder="https://youtube.com/..."
+                      dir="ltr"
+                    >
+                  </div>
+
+                  <div class="nr-field">
+                    <label for="studio-video-duration">مدة الفيديو (تظهر على البطاقة)</label>
+                    <input
+                      type="text"
+                      id="studio-video-duration"
+                      class="nr-input"
+                      placeholder="مثال: 01:45"
+                      dir="ltr"
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <!-- الوسوم الموحدة (بحد أقصى 3 وسوم لمنع فوضى الـ SEO) -->
+              <div class="nr-field">
+                <div class="field-label-row">
+                  <label for="studio-tags-input">الوسوم الدلالية (بحد أقصى 3 وسوم يفصل بينها فاصلة)</label>
+                  <span id="studio-tags-counter" class="char-counter">0 / 3 وسوم</span>
+                </div>
+                <input
+                  type="text"
+                  id="studio-tags-input"
+                  class="nr-input"
+                  placeholder="مثال: اليمن, تعز, السعودية"
+                >
+                <div class="suggested-tags-bar">
+                  <span class="suggested-label">وسوم المنصة الموحدة (اضغط للإضافة):</span>
+                  <div id="studio-suggested-tags-list" class="suggested-tags-chips"></div>
+                </div>
+              </div>
+
+              <!-- خيار إداري لتحديد الكاتب (يظهر للأدمن فقط) -->
+              <div id="studio-admin-author-override-box" class="nr-field hidden">
+                <label for="studio-author-select">نشر المادة باسم الصحفي / الكاتب (صلاحية إدارية)</label>
+                <select id="studio-author-select" class="nr-select"></select>
+              </div>
+
+              <div class="studio-stage-footer">
+                <button type="button" class="btn-outline-crimson" data-goto-step="1">
+                  <span class="material-symbols-rounded" translate="no">arrow_forward</span>
+                  <span>السابق: العنوان والموجز</span>
+                </button>
+                <button type="button" class="btn-crimson-lg" data-goto-step="3">
+                  <span>التالي: تحرير المقال الكامل</span>
+                  <span class="material-symbols-rounded" translate="no">arrow_back</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- =========================================================
+                 المرحلة 3: محرر النص الصحفي الكامل (Full-Page Word-Like Editor)
+                 ========================================================= -->
+            <div id="studio-stage-3" class="studio-stage-pane hidden">
+              <div class="stage-intro-banner">
+                <span class="material-symbols-rounded" translate="no">looks_3</span>
+                <div>
+                  <h3>المرحلة الثالثة: غرفة التحرير الصحفي الكاملة</h3>
+                  <p>نسّق الفقرات والعناوين الفرعية والاقتباسات، وأدرج صوراً توضيحية متعددة بين الفقرات بكل حرية.</p>
+                </div>
+              </div>
+
+              <!-- شريط أدوات التحرير الاحترافي الشامل -->
+              <div class="word-editor-shell">
+                <div class="word-editor-toolbar" role="toolbar" aria-label="أدوات تنسيق المقال">
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="formatBlock" data-ed-val="H2" title="عنوان رئيسي فرعي H2">
+                    <strong>H2</strong>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="formatBlock" data-ed-val="H3" title="عنوان فرعي H3">
+                    <strong>H3</strong>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="formatBlock" data-ed-val="P" title="فقرة عادية">
+                    <span class="material-symbols-rounded" translate="no">notes</span>
+                  </button>
+
+                  <span class="ed-sep"></span>
+
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="bold" title="خط عريض">
+                    <span class="material-symbols-rounded" translate="no">format_bold</span>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="italic" title="خط مائل">
+                    <span class="material-symbols-rounded" translate="no">format_italic</span>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="underline" title="تسطير">
+                    <span class="material-symbols-rounded" translate="no">format_underlined</span>
+                  </button>
+
+                  <span class="ed-sep"></span>
+
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="formatBlock" data-ed-val="BLOCKQUOTE" title="اقتباس صحفي بارز">
+                    <span class="material-symbols-rounded" translate="no">format_quote</span>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="insertUnorderedList" title="قائمة نقطية">
+                    <span class="material-symbols-rounded" translate="no">format_list_bulleted</span>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="insertOrderedList" title="قائمة رقمية">
+                    <span class="material-symbols-rounded" translate="no">format_list_numbered</span>
+                  </button>
+
+                  <span class="ed-sep"></span>
+
+                  <button type="button" id="ed-insert-link-btn" class="ed-tool-btn" title="إدراج رابط نصي">
+                    <span class="material-symbols-rounded" translate="no">link</span>
+                  </button>
+
+                  <!-- زر إدراج الصور المتعددة بين الفقرات مع وصف الصورة -->
+                  <button type="button" id="ed-open-inline-img-modal-btn" class="ed-tool-btn ed-tool-highlight" title="إدراج صورة توضيحية بين الفقرات">
+                    <span class="material-symbols-rounded" translate="no">add_photo_alternate</span>
+                    <span>إدراج صورة بالمنتصف</span>
+                  </button>
+
+                  <span class="ed-sep"></span>
+
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="removeFormat" title="مسح التنسيق">
+                    <span class="material-symbols-rounded" translate="no">format_clear</span>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="undo" title="تراجع">
+                    <span class="material-symbols-rounded" translate="no">undo</span>
+                  </button>
+                  <button type="button" class="ed-tool-btn" data-ed-cmd="redo" title="إعادة">
+                    <span class="material-symbols-rounded" translate="no">redo</span>
+                  </button>
+                </div>
+
+                <!-- مساحة الكتابة الصحفية الكبرى -->
+                <div
+                  id="studio-rich-editor"
+                  class="word-editor-canvas"
+                  contenteditable="true"
+                  data-placeholder="ابدأ كتابة تفاصيل الخبر أو المقال هنا... يمكنك تقسيم النص إلى فقرات وعناوين فرعية وإدراج الصور التوضيحية في أي موضع."
+                ></div>
+
+                <!-- شريط عداد الكلمات ووقت القراءة في أسفل المحرر -->
+                <div class="word-editor-statusbar">
+                  <span id="studio-words-counter">0 كلمة</span>
+                  <span>•</span>
+                  <span id="studio-reading-time">أقل من دقيقة للقراءة</span>
+                  <span style="margin-right:auto;" id="studio-inline-images-count">0 صور مدمجة</span>
+                </div>
+              </div>
+
+              <div class="studio-stage-footer">
+                <button type="button" class="btn-outline-crimson" data-goto-step="2">
+                  <span class="material-symbols-rounded" translate="no">arrow_forward</span>
+                  <span>السابق: الأقسام والوسائط</span>
+                </button>
+                <button type="button" class="btn-crimson-lg" data-goto-step="4">
+                  <span>التالي: المعاينة والاعتماد النهائي</span>
+                  <span class="material-symbols-rounded" translate="no">arrow_back</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- =========================================================
+                 المرحلة 4: المعاينة الحية والاعتماد النهائي أو الحفظ كمسودة
+                 ========================================================= -->
+            <div id="studio-stage-4" class="studio-stage-pane hidden">
+              <div class="stage-intro-banner">
+                <span class="material-symbols-rounded" translate="no">looks_4</span>
+                <div>
+                  <h3>المرحلة الرابعة: المعاينة النهائية واعتماد النشر</h3>
+                  <p>تأكد من اكتمال عناصر التقرير وشاهد كيف سيظهر للقراء قبل الضغط على زر النشر أو الحفظ كمسودة.</p>
+                </div>
+              </div>
+
+              <!-- بطاقة فحص الجاهزية السريعة -->
+              <div id="studio-readiness-checklist" class="readiness-checklist-grid"></div>
+
+              <!-- معاينة حية لشكل الخبر -->
+              <div class="studio-live-preview-box">
+                <div class="preview-box-label">
+                  <span class="material-symbols-rounded" translate="no">visibility</span>
+                  <span>معاينة حية للمادة الصحفية كما ستظهر في حُجرية بريس</span>
+                </div>
+                <div id="studio-final-preview-render" class="studio-preview-article"></div>
+              </div>
+
+              <div class="studio-stage-footer final-publish-footer">
+                <button type="button" class="btn-outline-crimson" data-goto-step="3">
+                  <span class="material-symbols-rounded" translate="no">arrow_forward</span>
+                  <span>العودة لتحرير النص</span>
+                </button>
+
+                <div class="final-publish-buttons">
+                  <button type="button" id="studio-save-draft-btn" class="btn-secondary-lg">
+                    <span class="material-symbols-rounded" translate="no">bookmark_add</span>
+                    <span>حفظ في المسودات المؤقتة</span>
+                  </button>
+
+                  <button type="submit" id="studio-publish-submit-btn" class="btn-crimson-lg">
+                    <span class="material-symbols-rounded" translate="no">send</span>
+                    <span id="studio-publish-btn-label">نشر الخبر الآن</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </form>
+
+        </div>
+      </section>
+
+      <!-- =================================================================
+           (3) واجهة مركز المراجعات والاعتماد (للإدارة ورئيس التحرير)
+           ================================================================= -->
+      <section id="view-reviews" class="nr-view hidden">
+        <div class="nr-panel-card">
+          <div class="nr-section-header">
+            <div class="nr-title-with-pillar">
+              <span class="aj-crimson-pillar"></span>
+              <h2>مركز المراجعات والاعتماد التحريري والقانوني</h2>
+            </div>
+          </div>
+
+          <!-- التبويبات الثلاثة لمركز المراجعات -->
+          <div class="reviews-tabs-bar" role="tablist">
+            <button type="button" class="rev-tab-btn active" data-rev-tab="posts">
+              <span class="material-symbols-rounded" translate="no">fact_check</span>
+              <span>مراجعة المنشورات</span>
+              <span id="rev-count-posts" class="rev-badge">0</span>
+            </button>
+
+            <button type="button" class="rev-tab-btn" data-rev-tab="signatures">
+              <span class="material-symbols-rounded" translate="no">draw</span>
+              <span>مراجعة التوقيعات والميثاق</span>
+              <span id="rev-count-signatures" class="rev-badge">0</span>
+            </button>
+
+            <button type="button" class="rev-tab-btn" data-rev-tab="verifications">
+              <span class="material-symbols-rounded" translate="no">verified_user</span>
+              <span>مراجعة التوثيقات والهوية</span>
+              <span id="rev-count-verifications" class="rev-badge">0</span>
+            </button>
+          </div>
+
+          <!-- (أ) تبويب مراجعة المنشورات المعلقة -->
+          <div id="rev-pane-posts" class="rev-tab-pane">
+            <div id="pending-posts-review-list" class="nr-posts-grid">
+              <div class="nr-empty-state">لا توجد منشورات معلقة بانتظار المراجعة حالياً.</div>
+            </div>
+          </div>
+
+          <!-- (ب) تبويب مراجعة التوقيعات على ميثاق الشرف -->
+          <div id="rev-pane-signatures" class="rev-tab-pane hidden">
+            <div id="pending-signatures-review-list" class="reviews-cards-stack">
+              <div class="nr-empty-state">لا توجد توقيعات جديدة بانتظار المطابقة والاعتماد.</div>
+            </div>
+          </div>
+
+          <!-- (ج) تبويب مراجعة طلبات توثيق الهوية والشارة الزرقاء -->
+          <div id="rev-pane-verifications" class="rev-tab-pane hidden">
+            <div id="pending-verifications-review-list" class="reviews-cards-stack">
+              <div class="nr-empty-state">لا توجد طلبات توثيق هوية معلقة حالياً.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           (4) واجهة المفكرة الصحفية السريعة (Quick Scratchpad Notes)
+           ================================================================= -->
+      <section id="view-notes" class="nr-view hidden">
+        <div class="nr-panel-card">
+          <div class="nr-section-header">
+            <div class="nr-title-with-pillar">
+              <span class="aj-crimson-pillar"></span>
+              <h2>المفكرة الصحفية وتدوين الأفكار السريعة</h2>
+            </div>
+          </div>
+
+          <form id="quick-note-form" class="note-creator-box">
+            <div class="nr-field">
+              <label for="note-title-input">عنوان الفكرة أو الملاحظة الصحفية</label>
+              <input type="text" id="note-title-input" class="nr-input" placeholder="مثال: نقاط رئيسية لتقرير الغد حول..." required>
+            </div>
+            <div class="nr-field">
+              <label for="note-body-input">التفاصيل، المصادر، أو المسودة الأولية</label>
+              <textarea id="note-body-input" class="nr-textarea" rows="4" placeholder="دوّن أفكارك، أرقام الهواتف، أو الفقرات الأولية هنا ليتم حفظها وتحويلها لاحقاً إلى خبر بنقرة واحدة..." required></textarea>
+            </div>
+            <div class="note-form-actions">
+              <button type="submit" class="btn-crimson-sm">
+                <span class="material-symbols-rounded" translate="no">save</span>
+                <span>حفظ في المفكرة</span>
+              </button>
+            </div>
+          </form>
+
+          <div id="notes-saved-grid" class="notes-grid">
+            <div class="nr-empty-state">لا توجد ملاحظات مدونة بعد.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           (5) واجهة حسابي، الهوية الصحفية، الكادر، وإعدادات المنصة المدمجة
+           ================================================================= -->
+      <section id="view-account" class="nr-view hidden">
+
+        <!-- شريط التبويبات الداخلية (تظهر تبويبات الإدارة تلقائياً لمن يملك صلاحيتها فقط دون إشعار الكاتب العادي بأي نقص) -->
+        <div class="account-subnav-bar" id="account-subnav-bar">
+          <button type="button" class="acc-subtab-btn active" data-acc-pane="profile">
+            <span class="material-symbols-rounded" translate="no">badge</span>
+            <span>ملفي وهويتي الصحفية</span>
+          </button>
+
+          <button type="button" class="acc-subtab-btn" data-acc-pane="kyc">
+            <span class="material-symbols-rounded" translate="no">verified_user</span>
+            <span>توثيق الهوية وميثاق الشرف</span>
+          </button>
+
+          <button type="button" id="acc-tab-staff-btn" class="acc-subtab-btn hidden" data-acc-pane="staff">
+            <span class="material-symbols-rounded" translate="no">groups</span>
+            <span>الكادر والصحفيون</span>
+          </button>
+
+          <button type="button" id="acc-tab-categories-btn" class="acc-subtab-btn hidden" data-acc-pane="categories">
+            <span class="material-symbols-rounded" translate="no">category</span>
+            <span>الأقسام والوسوم</span>
+          </button>
+
+          <button type="button" id="acc-tab-ads-btn" class="acc-subtab-btn hidden" data-acc-pane="ads">
+            <span class="material-symbols-rounded" translate="no">campaign</span>
+            <span>الإعلانات</span>
+          </button>
+
+          <button type="button" id="acc-tab-settings-btn" class="acc-subtab-btn hidden" data-acc-pane="settings">
+            <span class="material-symbols-rounded" translate="no">tune</span>
+            <span>إعدادات المنصة والميثاق</span>
+          </button>
+        </div>
+
+        <!-- ===============================================================
+             (أ) تبويب ملفي الشخصي وهويتي الصحفية الثابتة (HP#####)
+             =============================================================== -->
+        <div id="acc-pane-profile" class="acc-pane">
+          <div class="nr-panel-card">
+
+            <!-- بطاقة الهوية الصحفية الرسمية (Press ID Card) -->
+            <div class="official-press-id-banner">
+              <div class="press-id-card-right">
+                <img id="profile-card-avatar" src="" alt="" class="press-card-avatar">
+                <div>
+                  <span class="press-card-org">بطاقة الهوية الصحفية الرقمية — حُجرية بريس</span>
+                  <div class="press-card-name-row">
+                    <h2 id="profile-card-name">الصحفي</h2>
+                    <span id="profile-card-verified" class="material-symbols-rounded verified-icon hidden" translate="no">verified</span>
+                  </div>
+                  <p id="profile-card-role" class="press-card-role">صحفي ومحرر</p>
+                  <div class="press-card-badges-row">
+                    <span id="profile-calculated-age-badge" class="age-auto-badge hidden">العمر: -- سنة</span>
+                    <span id="profile-charter-status-badge" class="charter-status-badge">ميثاق الشرف: قيد التحقق</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="press-id-card-left">
+                <span class="press-id-label">رقم الهوية الصحفية الثابت</span>
+                <div class="press-id-number-box">
+                  <strong id="profile-press-id-display" dir="ltr">HP10000</strong>
+                  <button type="button" id="copy-my-press-id-btn" class="btn-icon-copy" title="نسخ الهوية الصحفية">
+                    <span class="material-symbols-rounded" translate="no">content_copy</span>
+                  </button>
+                </div>
+                <small>تُستخدم هذه الهوية لتسجيل الدخول وكمرجع رسمي ثابت</small>
+              </div>
+            </div>
+
+            <!-- نموذج تحديث الملف الشخصي، التواصل، وبيانات الدخول -->
+            <form id="my-profile-update-form" class="nr-form-stack">
+              <div class="nr-section-header" style="margin-top:10px;">
+                <div class="nr-title-with-pillar">
+                  <span class="aj-crimson-pillar"></span>
+                  <h3>البيانات المهنية ووسائل التواصل مع الإدارة</h3>
+                </div>
+              </div>
+
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="prof-display-name">الاسم الصحفي الظاهر للقراء <span class="req-star">*</span></label>
+                  <input type="text" id="prof-display-name" class="nr-input" required>
+                </div>
+
+                <div class="nr-field">
+                  <label for="prof-job-title">المسمى المهني / الصفة الصحفية</label>
+                  <input type="text" id="prof-job-title" class="nr-input" placeholder="مثال: صحفي ومحلل سياسي">
+                </div>
+              </div>
+
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="prof-contact-email">البريد الإلكتروني للتواصل الرسمي (اختياري)</label>
+                  <div class="input-with-icon">
+                    <span class="material-symbols-rounded" translate="no">mail</span>
+                    <input type="email" id="prof-contact-email" placeholder="name@example.com" dir="ltr">
+                  </div>
+                </div>
+
+                <div class="nr-field">
+                  <label for="prof-whatsapp-number">رقم الجوال (واتساب) للتواصل السريع مع الإدارة</label>
+                  <div class="input-with-icon">
+                    <span class="material-symbols-rounded" translate="no">call</span>
+                    <input type="tel" id="prof-whatsapp-number" placeholder="مثال: 966500000000 أو 967770000000" dir="ltr">
+                  </div>
+                </div>
+              </div>
+
+              <div class="nr-field">
+                <label>الصورة الشخصية للصحفي (رفع من الجهاز أو رابط مباشر)</label>
+                <div class="media-upload-row">
+                  <label for="prof-avatar-file-input" class="btn-crimson-sm file-upload-label">
+                    <span class="material-symbols-rounded" translate="no">photo_camera</span>
+                    <span>رفع صورة شخصية</span>
+                  </label>
+                  <input type="file" id="prof-avatar-file-input" accept="image/*" class="hidden">
+                  <input type="url" id="prof-avatar-url-input" class="nr-input" placeholder="أو الصق رابط الصورة الشخصية..." dir="ltr">
+                </div>
+              </div>
+
+              <div class="nr-field">
+                <label for="prof-bio-input">النبذة التعريفية المختصرة (تظهر في صفحتك بالمنصة)</label>
+                <textarea id="prof-bio-input" class="nr-textarea" rows="3" placeholder="اكتب نبذة مهنية مختصرة..."></textarea>
+              </div>
+
+              <div class="nr-section-header" style="margin-top:16px;">
+                <div class="nr-title-with-pillar">
+                  <span class="aj-crimson-pillar"></span>
+                  <h3>إعدادات اسم المستخدم، كلمة المرور، ورمز PIN السريع</h3>
+                </div>
+              </div>
+
+              <div class="studio-three-cols">
+                <div class="nr-field">
+                  <label for="prof-username-input">اسم المستخدم (يمكنك تغييره متى شئت)</label>
+                  <input type="text" id="prof-username-input" class="nr-input" dir="ltr" required>
+                </div>
+
+                <div class="nr-field">
+                  <label for="prof-new-password">كلمة مرور جديدة (اتركها فارغة إن لم ترد تغييرها)</label>
+                  <input type="password" id="prof-new-password" class="nr-input" placeholder="••••••••" dir="ltr">
+                </div>
+
+                <div class="nr-field">
+                  <label for="prof-quick-pin">رمز الدخول السريع PIN (4 أرقام)</label>
+                  <input type="password" id="prof-quick-pin" class="nr-input" inputmode="numeric" maxlength="4" placeholder="••••" dir="ltr">
+                </div>
+              </div>
+
+              <div class="form-submit-row">
+                <button type="submit" class="btn-crimson-lg">
+                  <span class="material-symbols-rounded" translate="no">save</span>
+                  <span>حفظ تحديثات ملفي الشخصي</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+
+        <!-- ===============================================================
+             (ب) تبويب توثيق الهوية الرسمية (KYC) وميثاق الشرف والشارة الزرقاء
+             =============================================================== -->
+        <div id="acc-pane-kyc" class="acc-pane hidden">
+          <div class="nr-panel-card">
+            <div class="nr-section-header">
+              <div class="nr-title-with-pillar">
+                <span class="aj-crimson-pillar"></span>
+                <h2>توثيق الهوية القانونية وميثاق الشرف الصحفي (الشارة الزرقاء)</h2>
+              </div>
+              <button type="button" id="view-my-signed-charter-btn" class="btn-outline-crimson">
+                <span class="material-symbols-rounded" translate="no">gavel</span>
+                <span>استعراض ميثاق الشرف وتوقيعي</span>
+              </button>
+            </div>
+
+            <div id="kyc-status-banner" class="kyc-status-banner">
+              <span class="material-symbols-rounded" translate="no">shield_person</span>
+              <div>
+                <strong id="kyc-status-heading">حالة التوثيق القانوني والشارة الزرقاء</strong>
+                <p id="kyc-status-subtext">أكمل بيانات وثيقتك الرسمية (بطاقة شخصية أو جواز سفر) وتأكد من توقيع ميثاق الشرف لطلب التوثيق.</p>
+              </div>
+            </div>
+
+            <form id="kyc-verification-form" class="nr-form-stack">
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="kyc-legal-fullname">الاسم الكامل الثلاثي أو الرباعي (كما هو مطابق للوثيقة الرسمية) <span class="req-star">*</span></label>
+                  <input type="text" id="kyc-legal-fullname" class="nr-input" placeholder="اكتب الاسم الرسمي المطابق للهوية تماماً" required>
+                </div>
+
+                <div class="nr-field">
+                  <label for="kyc-doc-type">نوع الوثيقة الرسمية <span class="req-star">*</span></label>
+                  <select id="kyc-doc-type" class="nr-select" required>
+                    <option value="national_id">بطاقة هوية شخصية / وطنية</option>
+                    <option value="passport">جواز سفر ساري المفعول</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="studio-three-cols">
+                <div class="nr-field">
+                  <label for="kyc-doc-number">رقم الهوية أو جواز السفر <span class="req-star">*</span></label>
+                  <input type="text" id="kyc-doc-number" class="nr-input" placeholder="أدخل الرقم الرسمي للوثيقة" dir="ltr" required>
+                </div>
+
+                <div class="nr-field">
+                  <label for="kyc-birth-date">تاريخ الميلاد (يُحسب العمر منه تلقائياً) <span class="req-star">*</span></label>
+                  <input type="date" id="kyc-birth-date" class="nr-input" dir="ltr" required>
+                  <small id="kyc-live-age-preview" class="age-calc-hint">العمر المحسوب تلقائياً: --</small>
+                </div>
+
+                <div class="nr-field">
+                  <label for="kyc-issue-date">تاريخ إصدار الوثيقة <span class="req-star">*</span></label>
+                  <input type="date" id="kyc-issue-date" class="nr-input" dir="ltr" required>
+                </div>
+              </div>
+
+              <div class="nr-field">
+                <label for="kyc-issuing-place">جهة الإصدار / المحافظة أو الدولة</label>
+                <input type="text" id="kyc-issuing-place" class="nr-input" placeholder="مثال: تعز / عدن / الرياض">
+              </div>
+
+              <!-- رفع صور الوثائق الرسمية + صورة السيلفي الإلزامية -->
+              <div class="kyc-uploads-grid">
+                <!-- 1. وجه الهوية أو الجواز -->
+                <div class="kyc-upload-card">
+                  <div class="kyc-upload-head">
+                    <span class="material-symbols-rounded" translate="no">badge</span>
+                    <strong id="kyc-front-label">صورة وجه البطاقة الشخصية (أو صفحة الجواز) *</strong>
+                  </div>
+                  <p>يجب أن تكون البيانات والأرقام واضحة ومقروءة تماماً.</p>
+                  <div class="media-upload-row">
+                    <label for="kyc-front-file" class="btn-crimson-sm file-upload-label">
+                      <span class="material-symbols-rounded" translate="no">upload</span>
+                      <span>رفع صورة الوجه</span>
+                    </label>
+                    <input type="file" id="kyc-front-file" accept="image/*" class="hidden">
+                    <input type="url" id="kyc-front-url" class="nr-input" placeholder="أو رابط الصورة..." dir="ltr">
+                  </div>
+                  <img id="kyc-front-preview" src="" alt="" class="kyc-img-preview hidden">
+                </div>
+
+                <!-- 2. ظهر البطاقة الشخصية (يختفي تلقائياً عند اختيار جواز سفر) -->
+                <div id="kyc-back-card-box" class="kyc-upload-card">
+                  <div class="kyc-upload-head">
+                    <span class="material-symbols-rounded" translate="no">flip_to_back</span>
+                    <strong>صورة ظهر البطاقة الشخصية *</strong>
+                  </div>
+                  <p>صورة واضحة للوجه الخلفي للبطاقة وتاريخ الإصدار.</p>
+                  <div class="media-upload-row">
+                    <label for="kyc-back-file" class="btn-crimson-sm file-upload-label">
+                      <span class="material-symbols-rounded" translate="no">upload</span>
+                      <span>رفع صورة الظهر</span>
+                    </label>
+                    <input type="file" id="kyc-back-file" accept="image/*" class="hidden">
+                    <input type="url" id="kyc-back-url" class="nr-input" placeholder="أو رابط الصورة..." dir="ltr">
+                  </div>
+                  <img id="kyc-back-preview" src="" alt="" class="kyc-img-preview hidden">
+                </div>
+
+                <!-- 3. صورة السيلفي الواضحة مع الوثيقة -->
+                <div class="kyc-upload-card">
+                  <div class="kyc-upload-head">
+                    <span class="material-symbols-rounded" translate="no">face</span>
+                    <strong>صورة سيلفي واضحة لك مع الوثيقة *</strong>
+                  </div>
+                  <p>لمطابقة الصورة الشخصية مع الوثيقة الرسمية وتأكيد الهوية قانونياً.</p>
+                  <div class="media-upload-row">
+                    <label for="kyc-selfie-file" class="btn-crimson-sm file-upload-label">
+                      <span class="material-symbols-rounded" translate="no">photo_camera</span>
+                      <span>رفع صورة السيلفي</span>
+                    </label>
+                    <input type="file" id="kyc-selfie-file" accept="image/*" class="hidden">
+                    <input type="url" id="kyc-selfie-url" class="nr-input" placeholder="أو رابط الصورة..." dir="ltr">
+                  </div>
+                  <img id="kyc-selfie-preview" src="" alt="" class="kyc-img-preview hidden">
+                </div>
+              </div>
+
+              <div class="form-submit-row">
+                <button type="submit" id="submit-kyc-verification-btn" class="btn-crimson-lg">
+                  <span class="material-symbols-rounded" translate="no">verified</span>
+                  <span>حفظ الوثائق وإرسال طلب التوثيق والشارة الزرقاء</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ===============================================================
+             (ج) تبويب إدارة الكادر والصحفيين (للأدمن — مع البحث بالهوية الصحفية HP)
+             =============================================================== -->
+        <div id="acc-pane-staff" class="acc-pane hidden">
+          <div class="nr-panel-card">
+            <div class="nr-section-header">
+              <div class="nr-title-with-pillar">
+                <span class="aj-crimson-pillar"></span>
+                <h2>سجل الكادر الصحفي والإضبارات القانونية</h2>
+                <span id="staff-total-count-badge" class="count-pill">0</span>
+              </div>
+
+              <button type="button" id="open-add-staff-modal-btn" class="btn-crimson-sm">
+                <span class="material-symbols-rounded" translate="no">person_add</span>
+                <span>إضافة صحفي جديد</span>
+              </button>
+            </div>
+
+            <!-- شريط البحث الذكي في الكادر (برقم الهوية HP10001 أو الاسم أو الواتساب أو البريد) -->
+            <div class="nr-filters-toolbar">
+              <div class="nr-search-box">
+                <span class="material-symbols-rounded" translate="no">badge</span>
+                <input
+                  type="search"
+                  id="staff-directory-search-input"
+                  placeholder="ابحث فوراً برقم الهوية الصحفية (مثال: HP10001)، أو اسم الصحفي، أو الجوال، أو البريد..."
+                  autocomplete="off"
+                >
+              </div>
+            </div>
+
+            <p class="section-helper-note">
+              اضغط على بطاقة أي صحفي لفتح <strong>الإضبارة الشاملة والملف القانوني (Dossier)</strong> ومشاهدة توقيعاته ووثائقه ونشاطه ومراسلته عبر واتساب أو البريد.
+            </p>
+
+            <div id="staff-directory-grid" class="staff-directory-grid"></div>
+          </div>
+        </div>
+
+        <!-- ===============================================================
+             (د) تبويب إدارة الأقسام والوسوم الموحدة (للأدمن)
+             =============================================================== -->
+        <div id="acc-pane-categories" class="acc-pane hidden">
+          <div class="nr-panel-card">
+            <div class="nr-section-header">
+              <div class="nr-title-with-pillar">
+                <span class="aj-crimson-pillar"></span>
+                <h2>إدارة أقسام الموقع والوسوم الموحدة</h2>
+              </div>
+            </div>
+
+            <form id="add-category-form" class="nr-form-stack" style="margin-bottom:22px;">
+              <div class="studio-three-cols">
+                <div class="nr-field">
+                  <label for="cat-name-input">اسم القسم الرئيسي</label>
+                  <input type="text" id="cat-name-input" class="nr-input" placeholder="مثال: السياسة اليمنية" required>
+                </div>
+                <div class="nr-field">
+                  <label for="cat-subs-input">التصنيفات الفرعية (يفصل بينها فاصلة)</label>
+                  <input type="text" id="cat-subs-input" class="nr-input" placeholder="مثال: تحليلات, تقارير ميدانية">
+                </div>
+                <div class="nr-field" style="display:flex;align-items:flex-end;">
+                  <button type="submit" class="btn-crimson-full">
+                    <span class="material-symbols-rounded" translate="no">add</span>
+                    <span>إضافة / تحديث القسم</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div id="categories-admin-list" class="categories-admin-list"></div>
+          </div>
+        </div>
+
+        <!-- ===============================================================
+             (هـ) تبويب إدارة الإعلانات التجارية (للأدمن)
+             =============================================================== -->
+        <div id="acc-pane-ads" class="acc-pane hidden">
+          <div class="nr-panel-card">
+            <div class="nr-section-header">
+              <div class="nr-title-with-pillar">
+                <span class="aj-crimson-pillar"></span>
+                <h2>إدارة المساحات الإعلانية والرعايات</h2>
+              </div>
+            </div>
+
+            <form id="ad-manager-form" class="nr-form-stack" style="margin-bottom:22px;">
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="ad-title-input">عنوان الإعلان</label>
+                  <input type="text" id="ad-title-input" class="nr-input" required>
+                </div>
+                <div class="nr-field">
+                  <label for="ad-sponsor-input">اسم الجهة المعلنة / الراعي</label>
+                  <input type="text" id="ad-sponsor-input" class="nr-input">
+                </div>
+              </div>
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="ad-target-url">رابط التوجيه عند النقر</label>
+                  <input type="url" id="ad-target-url" class="nr-input" dir="ltr" placeholder="https://..." required>
+                </div>
+                <div class="nr-field">
+                  <label for="ad-image-url">رابط صورة البنر الإعلاني</label>
+                  <input type="url" id="ad-image-url" class="nr-input" dir="ltr" placeholder="https://...">
+                </div>
+              </div>
+              <button type="submit" class="btn-crimson-sm">
+                <span class="material-symbols-rounded" translate="no">add_business</span>
+                <span>إضافة الإعلان وتفعيله</span>
+              </button>
+            </form>
+
+            <div id="ads-admin-list" class="ads-admin-list"></div>
+          </div>
+        </div>
+
+        <!-- ===============================================================
+             (و) تبويب إعدادات المنصة وميثاق الشرف الصحفي (للأدمن)
+             =============================================================== -->
+        <div id="acc-pane-settings" class="acc-pane hidden">
+          <div class="nr-panel-card">
+            <div class="nr-section-header">
+              <div class="nr-title-with-pillar">
+                <span class="aj-crimson-pillar"></span>
+                <h2>الإعدادات العامة والهوية وميثاق الشرف الصحفي</h2>
+              </div>
+            </div>
+
+            <form id="platform-settings-form" class="nr-form-stack">
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="set-site-name">اسم المنصة الإخبارية</label>
+                  <input type="text" id="set-site-name" class="nr-input" value="حُجرية بريس">
+                </div>
+                <div class="nr-field">
+                  <label for="set-accent-color">اللون القرمزي الرسمي للهوية</label>
+                  <input type="color" id="set-accent-color" class="nr-color-input" value="#b80d38">
+                </div>
+              </div>
+
+              <div class="nr-field">
+                <label for="set-site-desc">الوصف التعريفي للمنصة (SEO Description)</label>
+                <textarea id="set-site-desc" class="nr-textarea" rows="2"></textarea>
+              </div>
+
+              <div class="studio-three-cols">
+                <div class="nr-field">
+                  <label for="set-logo-url">رابط الشعار الرسمي الشفاف (Logo PNG/SVG)</label>
+                  <input type="url" id="set-logo-url" class="nr-input" dir="ltr">
+                </div>
+                <div class="nr-field">
+                  <label for="set-default-post-img">الصورة الافتراضية للأخبار بدون صورة</label>
+                  <input type="url" id="set-default-post-img" class="nr-input" dir="ltr">
+                </div>
+                <div class="nr-field">
+                  <label for="set-imgbb-key">مفتاح ImgBB لرفع الصور السحابي التلقائي</label>
+                  <input type="text" id="set-imgbb-key" class="nr-input" dir="ltr" placeholder="اختياري">
+                </div>
+              </div>
+
+              <div class="nr-field">
+                <label for="set-unified-tags">الوسوم الموحدة المقترحة للصحفيين (يفصل بينها فاصلة)</label>
+                <input type="text" id="set-unified-tags" class="nr-input" placeholder="اليمن, السعودية, تعز, الحجرية, عدن, صنعاء, الرياض, البحر_الأحمر, اقتصاد, رياضة">
+              </div>
+
+              <!-- إدارة ميثاق الشرف الصحفي وتعميم التحديثات -->
+              <div class="charter-settings-box">
+                <div class="nr-section-header">
+                  <div class="nr-title-with-pillar">
+                    <span class="aj-crimson-pillar"></span>
+                    <h3>نص «ميثاق الشرف الصحفي والتحريري» المعتمد للتوقيع</h3>
+                  </div>
+                  <span id="current-charter-version-badge" class="count-pill">الإصدار 1.0</span>
+                </div>
+
+                <p class="section-helper-note">
+                  هذا النص يظهر لكل صحفي لقراءته والتوقيع عليه. إذا قمت بتعديل النص وتفعيل خيار <strong>«إشعار الكادر بتحديث الميثاق»</strong>، سيظهر تنبيه غير معطّل للعمل لجميع الصحفيين لقراءة النسخة الجديدة وتوقيعها.
+                </p>
+
+                <div class="nr-field">
+                  <label for="set-charter-html">بنود ونص ميثاق الشرف الصحفي (يدعم النصوص والفقرات والعناوين)</label>
+                  <textarea id="set-charter-html" class="nr-textarea" rows="8"></textarea>
+                </div>
+
+                <label class="flag-toggle-card" style="margin-top:10px;">
+                  <input type="checkbox" id="set-bump-charter-version">
+                  <div class="flag-card-body">
+                    <span class="material-symbols-rounded" translate="no">notifications_active</span>
+                    <div>
+                      <strong>رفع إصدار الميثاق ومطالبة جميع الصحفيين بالتوقيع على التحديث الجديد</strong>
+                      <small>لن يتوقف عمل الصحفيين المعتمدين، بل سيظهر لهم تنبيه لتوقيع النسخة المحدثة وإحالتها لمراجعتك</small>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- الصفحات المؤسسية الثابتة الأخرى -->
+              <div class="studio-two-cols">
+                <div class="nr-field">
+                  <label for="set-about-html">نص صفحة «من نحن والتوجيه الوطني»</label>
+                  <textarea id="set-about-html" class="nr-textarea" rows="4"></textarea>
+                </div>
+                <div class="nr-field">
+                  <label for="set-privacy-html">نص صفحة «سياسة الخصوصية»</label>
+                  <textarea id="set-privacy-html" class="nr-textarea" rows="4"></textarea>
+                </div>
+              </div>
+
+              <div class="form-submit-row">
+                <button type="submit" class="btn-crimson-lg">
+                  <span class="material-symbols-rounded" translate="no">save</span>
+                  <span>حفظ كافة إعدادات المنصة والميثاق</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ===================================================================
+         الشريط السفلي الزجاجي العائم (Floating Bottom Navigation Dock)
+         =================================================================== -->
+    <nav class="floating-bottom-dock" aria-label="التنقل الرئيسي لغرفة الأخبار">
+      <button type="button" class="dock-nav-item active" data-dock-view="newsroom">
+        <span class="material-symbols-rounded" translate="no">newspaper</span>
+        <span>غرفة الأخبار</span>
+      </button>
+
+      <!-- تبويب المراجعات (يظهر فقط للأدمن ورئيس التحرير) -->
+      <button type="button" id="dock-reviews-btn" class="dock-nav-item hidden" data-dock-view="reviews">
+        <div class="dock-icon-badge-wrap">
+          <span class="material-symbols-rounded" translate="no">fact_check</span>
+          <span id="dock-reviews-count" class="dock-mini-badge hidden">0</span>
+        </div>
+        <span>المراجعات</span>
+      </button>
+
+      <!-- الزر المركزي البارز (+ نشر جديد) -->
+      <button type="button" id="dock-plus-publish-btn" class="dock-center-publish-btn" aria-label="نشر جديد">
+        <span class="material-symbols-rounded" translate="no">add</span>
+        <span>نشر جديد</span>
+      </button>
+
+      <button type="button" class="dock-nav-item" data-dock-view="notes">
+        <span class="material-symbols-rounded" translate="no">lightbulb</span>
+        <span>المفكرة</span>
+      </button>
+
+      <button type="button" class="dock-nav-item" data-dock-view="account">
+        <span class="material-symbols-rounded" translate="no">account_circle</span>
+        <span>حسابي</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- =====================================================================
+       3. النافذة المصغرة الأنيقة لاختيار نوع النشر عند الضغط على (+ نشر جديد)
+       ===================================================================== -->
+  <div id="quick-launcher-overlay" class="nr-modal-overlay hidden" role="dialog" aria-label="اختيار نوع المادة الجديدة">
+    <div class="quick-launcher-sheet">
+      <div class="launcher-sheet-header">
+        <div class="nr-title-with-pillar">
+          <span class="aj-crimson-pillar"></span>
+          <h3>ماذا تود أن تصيغ اليوم في غرفة الأخبار؟</h3>
+        </div>
+        <button type="button" id="close-quick-launcher-btn" class="modal-close-x">
+          <span class="material-symbols-rounded" translate="no">close</span>
+        </button>
+      </div>
+
+      <div class="launcher-options-grid">
+        <button type="button" class="launcher-option-card" data-launch-studio="standard">
+          <div class="launcher-icon crimson-bg">
+            <span class="material-symbols-rounded" translate="no">article</span>
+          </div>
+          <div class="launcher-text">
+            <strong>خبر أو تقرير صحفي متكامل</strong>
+            <small>يفتح استديو الصحافة الكامل بـ 4 مراحل مع الصور والفقرات</small>
+          </div>
+        </button>
+
+        <button type="button" class="launcher-option-card" data-launch-studio="breaking">
+          <div class="launcher-icon red-solid-bg">
+            <span class="material-symbols-rounded" translate="no">campaign</span>
+          </div>
+          <div class="launcher-text">
+            <strong>خبر عاجل فوري</strong>
+            <small>يفتح الاستديو مهيأً للنشر العاجل في الشريط القرمزي</small>
+          </div>
+        </button>
+
+        <button type="button" class="launcher-option-card" data-launch-studio="pulse">
+          <div class="launcher-icon amber-bg">
+            <span class="material-symbols-rounded" translate="no">bolt</span>
+          </div>
+          <div class="launcher-text">
+            <strong>موجز سريع (النبض)</strong>
+            <small>للاقتباسات العاجلة والتطورات الميدانية المختصرة</small>
+          </div>
+        </button>
+
+        <button type="button" class="launcher-option-card" data-launch-studio="shorts">
+          <div class="launcher-icon blue-bg">
+            <span class="material-symbols-rounded" translate="no">smart_display</span>
+          </div>
+          <div class="launcher-text">
+            <strong>فيديو أو ريلز قصير (9:16)</strong>
+            <small>لنشر التغطيات المرئية والفيديوهات القصيرة</small>
+          </div>
+        </button>
+
+        <button type="button" id="launcher-open-note-btn" class="launcher-option-card">
+          <div class="launcher-icon slate-bg">
+            <span class="material-symbols-rounded" translate="no">edit_note</span>
+          </div>
+          <div class="launcher-text">
+            <strong>تدوين فكرة في المفكرة الشخصية</strong>
+            <small>احفظ فكرة أو مسودة سريعة لتحويلها إلى تقرير لاحقاً</small>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       4. نافذة إدراج صورة توضيحية بين فقرات المقال في المرحلة 3
+       ===================================================================== -->
+  <div id="inline-image-modal-overlay" class="nr-modal-overlay hidden" role="dialog" aria-label="إدراج صورة داخل المقال">
+    <div class="nr-modal-card" style="max-width:540px;">
+      <div class="launcher-sheet-header">
+        <div class="nr-title-with-pillar">
+          <span class="aj-crimson-pillar"></span>
+          <h3>إدراج صورة توضيحية بين فقرات المقال</h3>
+        </div>
+        <button type="button" id="close-inline-image-modal-btn" class="modal-close-x">
+          <span class="material-symbols-rounded" translate="no">close</span>
+        </button>
+      </div>
+
+      <div class="nr-form-stack" style="margin-top:14px;">
+        <div class="nr-field">
+          <label>اختر صورة من جهازك أو الصق رابطها</label>
+          <div class="media-upload-row">
+            <label for="inline-img-file-input" class="btn-crimson-sm file-upload-label">
+              <span class="material-symbols-rounded" translate="no">upload</span>
+              <span id="inline-img-upload-status">اختيار صورة</span>
+            </label>
+            <input type="file" id="inline-img-file-input" accept="image/*" class="hidden">
+            <input type="url" id="inline-img-url-input" class="nr-input" placeholder="أو الصق رابط الصورة https://..." dir="ltr">
+          </div>
+        </div>
+
+        <img id="inline-img-preview-box" src="" alt="" class="kyc-img-preview hidden">
+
+        <div class="nr-field">
+          <label for="inline-img-caption-input">وصف الصورة التوضيحي (يظهر أسفل الصورة داخل المقال - اختياري)</label>
+          <input type="text" id="inline-img-caption-input" class="nr-input" placeholder="مثال: جانب من اللقاء الرسمي اليوم في العاصمة...">
+        </div>
+
+        <div class="form-submit-row">
+          <button type="button" id="confirm-insert-inline-img-btn" class="btn-crimson-full">
+            <span class="material-symbols-rounded" translate="no">add_photo_alternate</span>
+            <span>إدراج الصورة في موضع المؤشر</span>
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ==================== 2. الهيدر وشريط التنقل ==================== -->
-  <header class="newsroom-header">
-    <div class="header-brand">
-      <span class="aj-crimson-pillar"></span>
-      <h1>غرفة الأخبار</h1>
-    </div>
-    <nav class="header-nav">
-      <button type="button" class="nav-btn active" data-target-view="view-dashboard">
-        <span class="material-symbols-rounded">space_dashboard</span>
-        <span>اللوحة الرئيسية</span>
-      </button>
-      <button type="button" class="nav-btn" data-target-view="view-write-studio">
-        <span class="material-symbols-rounded">edit_document</span>
-        <span>صياغة خبر جديد</span>
-      </button>
-      <!-- زر المراجعات يظهر للأدمن فقط -->
-      <button type="button" id="nav-reviews-btn" class="nav-btn hidden" data-target-view="view-reviews">
-        <span class="material-symbols-rounded">rate_review</span>
-        <span>المراجعات <span id="reviews-badge" class="badge hidden">0</span></span>
-      </button>
-      <button type="button" id="nav-staff-btn" class="nav-btn hidden" data-target-view="view-staff">
-        <span class="material-symbols-rounded">groups</span>
-        <span>الكادر</span>
-      </button>
-      <button type="button" class="nav-btn" data-target-view="view-profile">
-        <span class="material-symbols-rounded">person</span>
-        <span>ملفي</span>
-      </button>
-    </nav>
-  </header>
-
-  <!-- ==================== 3. مساحة العمل الرئيسية ==================== -->
-  <main class="newsroom-workspace">
-    
-    <!-- (أ) اللوحة الرئيسية (صندوق الأخبار السريعة والمسودات) -->
-    <section id="view-dashboard" class="nr-view active">
-      <div class="dashboard-grid">
-        <div class="quick-stats-card">
-          <div class="stat-item">
-            <span class="stat-label">أخباري المنشورة</span>
-            <strong id="stat-published" class="stat-value">0</strong>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">قيد المراجعة</span>
-            <strong id="stat-pending" class="stat-value">0</strong>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">المسودات</span>
-            <strong id="stat-drafts" class="stat-value">0</strong>
-          </div>
+  <!-- =====================================================================
+       5. نافذة ميثاق الشرف الصحفي والتوقيع الرقمي الثلاثي للمطابقة
+       ===================================================================== -->
+  <div id="pledge-modal-overlay" class="nr-modal-overlay hidden" role="dialog" aria-label="ميثاق الشرف الصحفي والتوقيع الرقمي">
+    <div class="nr-modal-card pledge-modal-wide">
+      <div class="launcher-sheet-header">
+        <div class="nr-title-with-pillar">
+          <span class="aj-crimson-pillar"></span>
+          <h3 id="pledge-modal-title">إقرار الالتزام بميثاق الشرف الصحفي والتوقيع الرقمي المعتمد</h3>
         </div>
-        
-        <div class="articles-list-container">
-          <div class="aj-block-header">
-            <span class="aj-crimson-pillar"></span>
-            <h2>موادي الصحفية</h2>
+        <button type="button" id="close-pledge-modal-btn" class="modal-close-x hidden" title="إغلاق مؤقت لمتابعة العمل">
+          <span class="material-symbols-rounded" translate="no">close</span>
+        </button>
+      </div>
+
+      <p id="pledge-modal-lead" class="pledge-lead-warning">
+        يرجى قراءة بنود ميثاق الشرف الصحفي لمنصة «حُجرية بريس» بعناية، ثم رسم توقيعك الشخصي المتطابق في الخانات المخصصة أدناه لإحالته إلى الإدارة للاعتماد.
+      </p>
+
+      <!-- صندوق قراءة الميثاق القابل للتمرير -->
+      <div id="pledge-charter-scroll-box" class="pledge-charter-scroll-box"></div>
+
+      <!-- خيار الموافقة القانونية -->
+      <label class="pledge-checkbox-row">
+        <input type="checkbox" id="pledge-agree-checkbox">
+        <span>أقر بأنني قرأت كافة بنود ميثاق الشرف الصحفي لمنصة <strong>حُجرية بريس</strong> وأتعهد بالالتزام الكامل بها قانونياً ومهنياً.</span>
+      </label>
+
+      <!-- منطقة التوقيع الرقمي الثلاثي (3 خانات للمطابقة عند التوقيع الأول، أو خانة واحدة عند التحديث) -->
+      <div class="triple-signature-section">
+        <div class="sig-section-header">
+          <div>
+            <strong id="sig-pads-instruction-title">التوقيع الرقمي المطابق (يرجى رسم توقيعك الحقيقي 3 مرات متشابهة للمطابقة القانونية)</strong>
+            <small>تنبيه: التوقيعات العشوائية أو غير المتشابهة يتم رفضها تلقائياً عند المراجعة.</small>
           </div>
-          <div id="author-articles-list" class="articles-list">
-             <!-- قائمة الأخبار تضاف هنا عبر JS -->
+          <span id="sig-similarity-badge" class="sig-similarity-badge">بانتظار إكمال التوقيعات</span>
+        </div>
+
+        <div id="signature-pads-grid" class="signature-pads-grid">
+          <!-- اللوحة 1 -->
+          <div class="sig-pad-card" id="sig-pad-box-1">
+            <div class="sig-pad-top">
+              <span>1. التوقيع الأساسي الأول</span>
+              <button type="button" class="btn-clear-canvas" data-clear-pad="1">مسح</button>
+            </div>
+            <canvas id="sig-canvas-1" width="320" height="130" class="sig-canvas"></canvas>
+          </div>
+
+          <!-- اللوحة 2 -->
+          <div class="sig-pad-card" id="sig-pad-box-2">
+            <div class="sig-pad-top">
+              <span>2. التوقيع الثاني (للمطابقة)</span>
+              <button type="button" class="btn-clear-canvas" data-clear-pad="2">مسح</button>
+            </div>
+            <canvas id="sig-canvas-2" width="320" height="130" class="sig-canvas"></canvas>
+          </div>
+
+          <!-- اللوحة 3 -->
+          <div class="sig-pad-card" id="sig-pad-box-3">
+            <div class="sig-pad-top">
+              <span>3. التوقيع الثالث (للتأكيد)</span>
+              <button type="button" class="btn-clear-canvas" data-clear-pad="3">مسح</button>
+            </div>
+            <canvas id="sig-canvas-3" width="320" height="130" class="sig-canvas"></canvas>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- (ب) استديو صياغة الأخبار (Multi-Step Article Studio) -->
-    <section id="view-write-studio" class="nr-view hidden">
-      <div class="studio-container">
-        
-        <!-- شريط التقدم -->
-        <div class="studio-progress-bar">
-          <div class="step-indicator active" data-step="1">1. الأساسيات</div>
-          <div class="step-indicator" data-step="2">2. الوسائط والتصنيف</div>
-          <div class="step-indicator" data-step="3">3. صياغة الخبر</div>
+      <div class="form-submit-row" style="margin-top:16px;">
+        <button type="button" id="submit-pledge-signatures-btn" class="btn-crimson-full">
+          <span class="material-symbols-rounded" translate="no">verified</span>
+          <span>اعتماد الإقرار وإرسال التوقيع للمراجعة</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       6. نافذة الإضبارة الشاملة للصحفي (The Comprehensive Journalist Dossier - للأدمن)
+       ===================================================================== -->
+  <div id="dossier-modal-overlay" class="nr-modal-overlay hidden" role="dialog" aria-label="الإضبارة الشاملة للصحفي">
+    <div class="nr-modal-card dossier-modal-wide">
+      <div class="launcher-sheet-header">
+        <div class="nr-title-with-pillar">
+          <span class="aj-crimson-pillar"></span>
+          <h3 id="dossier-header-title">الإضبارة القانونية والملف الشامل للصحفي</h3>
+        </div>
+        <button type="button" id="close-dossier-modal-btn" class="modal-close-x">
+          <span class="material-symbols-rounded" translate="no">close</span>
+        </button>
+      </div>
+
+      <div id="dossier-modal-body" class="dossier-body-content">
+        <!-- يتم تعبئتها ديناميكياً بكافة بيانات الصحفي، هويته HP، عمره، أزرار واتساب والبريد، وثائق الهوية، التوقيعات الثلاثة، وسجل منشوراته -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       7. نافذة إضافة / تعديل حساب صحفي وصلاحياته (للأدمن)
+       ===================================================================== -->
+  <div id="staff-editor-modal-overlay" class="nr-modal-overlay hidden" role="dialog" aria-label="إضافة أو تعديل حساب صحفي">
+    <div class="nr-modal-card" style="max-width:620px;">
+      <div class="launcher-sheet-header">
+        <div class="nr-title-with-pillar">
+          <span class="aj-crimson-pillar"></span>
+          <h3 id="staff-editor-modal-title">إضافة صحفي جديد إلى غرفة الأخبار</h3>
+        </div>
+        <button type="button" id="close-staff-editor-modal-btn" class="modal-close-x">
+          <span class="material-symbols-rounded" translate="no">close</span>
+        </button>
+      </div>
+
+      <form id="admin-staff-editor-form" class="nr-form-stack" style="margin-top:14px;">
+        <input type="hidden" id="edit-staff-doc-id" value="">
+
+        <div class="studio-two-cols">
+          <div class="nr-field">
+            <label for="staff-ed-name">الاسم الصحفي الكامل <span class="req-star">*</span></label>
+            <input type="text" id="staff-ed-name" class="nr-input" required>
+          </div>
+          <div class="nr-field">
+            <label for="staff-ed-press-id">الهوية الصحفية الثابتة (تُولّد تلقائياً بصيغة HP#####)</label>
+            <input type="text" id="staff-ed-press-id" class="nr-input" dir="ltr" readonly>
+          </div>
         </div>
 
-        <form id="article-studio-form">
-          <!-- الخطوة 1: الأساسيات -->
-          <div class="studio-step active" id="studio-step-1">
-            <div class="form-group">
-              <label>العنوان الرئيسي (110 حرف كحد أقصى)</label>
-              <input type="text" id="post-title" class="form-input" required maxlength="110" placeholder="اكتب عنواناً صحفياً جذاباً ومختصراً...">
-            </div>
-            <div class="form-group">
-              <label>الملخص الإخباري (يظهر في محركات البحث وبداية الخبر)</label>
-              <textarea id="post-summary" class="form-textarea" rows="3" required placeholder="اكتب ملخصاً يعطي زبدة الخبر..."></textarea>
-            </div>
-            <div class="step-actions">
-              <button type="button" class="btn-primary btn-next-step">التالي: الوسائط</button>
-            </div>
+        <div class="studio-two-cols">
+          <div class="nr-field">
+            <label for="staff-ed-username">اسم المستخدم المبدئي <span class="req-star">*</span></label>
+            <input type="text" id="staff-ed-username" class="nr-input" dir="ltr" required>
           </div>
-
-          <!-- الخطوة 2: الوسائط والتصنيف -->
-          <div class="studio-step hidden" id="studio-step-2">
-            <div class="form-group">
-              <label>القسم الرئيسي</label>
-              <select id="post-category" class="form-select" required></select>
-            </div>
-            <div class="form-group">
-              <label>الصورة البارزة للخبر</label>
-              <input type="file" id="post-main-image" class="form-input" accept="image/*">
-            </div>
-            <div class="form-group">
-              <label>الوسوم (هاشتاجات - تفصل بمسافة)</label>
-              <input type="text" id="post-tags" class="form-input" placeholder="#اليمن #أخبار_عاجلة">
-            </div>
-            <div class="step-actions">
-              <button type="button" class="btn-secondary btn-prev-step">السابق</button>
-              <button type="button" class="btn-primary btn-next-step">التالي: صياغة الخبر</button>
-            </div>
+          <div class="nr-field">
+            <label for="staff-ed-password">كلمة المرور <span class="req-star">*</span></label>
+            <input type="text" id="staff-ed-password" class="nr-input" dir="ltr" required>
           </div>
+        </div>
 
-          <!-- الخطوة 3: صياغة الخبر (المحرر الواسع) -->
-          <div class="studio-step hidden" id="studio-step-3">
-            <div class="editor-toolbar">
-              <button type="button" class="toolbar-btn" title="عريض" data-command="bold"><span class="material-symbols-rounded">format_bold</span></button>
-              <button type="button" class="toolbar-btn" title="عنوان فرعي" data-command="formatBlock" data-value="H3"><span class="material-symbols-rounded">title</span></button>
-              <button type="button" class="toolbar-btn" title="اقتباس" data-command="formatBlock" data-value="BLOCKQUOTE"><span class="material-symbols-rounded">format_quote</span></button>
-              <button type="button" class="toolbar-btn" title="إدراج صورة بين الفقرات" id="insert-inline-img-btn"><span class="material-symbols-rounded">add_photo_alternate</span></button>
-            </div>
-            <div id="rich-text-editor" class="rich-editor" contenteditable="true" placeholder="ابدأ صياغة تفاصيل الخبر هنا..."></div>
-            
-            <div class="step-actions split-actions">
-              <button type="button" class="btn-secondary btn-prev-step">السابق</button>
-              <div class="save-actions">
-                <span id="auto-save-indicator" class="auto-save-text"></span>
-                <button type="button" id="save-draft-btn" class="btn-secondary">حفظ كمسودة</button>
-                <button type="button" id="publish-article-btn" class="btn-primary">إرسال / نشر</button>
+        <div class="studio-two-cols">
+          <div class="nr-field">
+            <label for="staff-ed-job">المسمى الصحفي</label>
+            <input type="text" id="staff-ed-job" class="nr-input" placeholder="مثال: محرر صحفي">
+          </div>
+          <div class="nr-field">
+            <label for="staff-ed-role">مستوى الدور في المنصة</label>
+            <select id="staff-ed-role" class="nr-select">
+              <option value="writer">صحفي / كاتب (نشر مع إحالة للمراجعة أو مباشر حسب الصلاحية)</option>
+              <option value="editor">محرر مفوض (اعتماد الأخبار والنشر المباشر)</option>
+              <option value="admin">مدير تحرير / أدمن شامل</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- الصلاحيات الدقيقة والشارة الزرقاء -->
+        <div class="studio-flags-grid">
+          <label class="flag-toggle-card">
+            <input type="checkbox" id="staff-ed-direct-publish">
+            <div class="flag-card-body">
+              <span class="material-symbols-rounded" translate="no">bolt</span>
+              <div>
+                <strong>صلاحية النشر المباشر الفوري</strong>
+                <small>ينشر دون انتظار مراجعة (إلا إذا لم يوقع الميثاق الأول)</small>
               </div>
             </div>
-          </div>
-        </form>
-      </div>
-    </section>
+          </label>
 
-    <!-- (ج) واجهة المراجعات (للأدمن فقط) -->
-    <section id="view-reviews" class="nr-view hidden">
-      <div class="tabs-header">
-        <button class="tab-btn active" data-tab="tab-rev-posts">📝 مراجعة الأخبار</button>
-        <button class="tab-btn" data-tab="tab-rev-sigs">✍️ مراجعة التوقيعات</button>
-        <button class="tab-btn" data-tab="tab-rev-verify">🛡️ طلبات التوثيق</button>
-      </div>
-      <div class="tabs-content">
-        <div id="tab-rev-posts" class="tab-pane active">
-           <!-- قائمة الأخبار المعلقة تضاف هنا -->
-        </div>
-        <div id="tab-rev-sigs" class="tab-pane hidden">
-           <!-- قائمة التوقيعات الجديدة تضاف هنا -->
-        </div>
-        <div id="tab-rev-verify" class="tab-pane hidden">
-           <!-- طلبات التوثيق -->
-        </div>
-      </div>
-    </section>
-
-    <!-- (د) إدارة الكادر والملف الشخصي الشامل (Dossier) -->
-    <section id="view-staff" class="nr-view hidden">
-      <div class="search-bar-container">
-        <input type="text" id="staff-search-input" class="form-input" placeholder="ابحث بالاسم أو الهوية الصحفية (مثال: HP10042)...">
-      </div>
-      <div id="staff-list-grid" class="staff-grid">
-         <!-- كروت الصحفيين -->
-      </div>
-    </section>
-
-    <!-- (هـ) الملف الشخصي للمستخدم الحالي -->
-    <section id="view-profile" class="nr-view hidden">
-       <div class="profile-card">
-         <div class="profile-header-info">
-            <img id="my-profile-avatar" src="" alt="الصورة الشخصية" class="profile-avatar">
-            <div>
-              <h2 id="my-profile-name">الاسم</h2>
-              <span id="my-press-id" class="press-id-badge">HP00000</span>
+          <label class="flag-toggle-card">
+            <input type="checkbox" id="staff-ed-verified-badge">
+            <div class="flag-card-body">
+              <span class="material-symbols-rounded" translate="no">verified</span>
+              <div>
+                <strong>منح الشارة الزرقاء (توثيق الحساب)</strong>
+                <small>تظهر بجانب اسمه في كافة أرجاء الموقع</small>
+              </div>
             </div>
-         </div>
-         <div class="profile-form">
-           <!-- نموذج إكمال البيانات (واتساب، إيميل، الهوية الرسمية) -->
-           <div class="aj-block-header" style="margin-top:20px;">
-             <span class="aj-crimson-pillar"></span>
-             <h3>إكمال ملف الهوية الصحفية</h3>
-           </div>
-           <div class="form-group">
-             <label>رقم الجوال (واتساب) - يسهل تواصل الإدارة معك</label>
-             <input type="tel" id="my-whatsapp" class="form-input" placeholder="مثال: +9677...">
-           </div>
-           <div class="form-group">
-             <label>تاريخ الميلاد (من واقع الهوية)</label>
-             <input type="date" id="my-dob" class="form-input">
-           </div>
-           <!-- زر طلب التوثيق -->
-           <button type="button" id="request-verification-btn" class="btn-primary" style="margin-top:15px;">طلب توثيق الحساب والشارة الزرقاء</button>
-         </div>
-       </div>
-    </section>
+          </label>
+        </div>
 
-  </main>
+        <div class="form-submit-row">
+          <button type="submit" class="btn-crimson-full">
+            <span class="material-symbols-rounded" translate="no">save</span>
+            <span>حفظ بيانات الصحفي واعتماد الصلاحيات</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-  <div id="admin-toast" class="admin-toast hidden"></div>
-  
-  <script type="module" src="./admin-app.js"></script>
+  <!-- إشعار العمليات الفوري (Toast) -->
+  <div id="nr-toast" class="nr-toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- المحرك البرمجي الشامل لغرفة الأخبار -->
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
