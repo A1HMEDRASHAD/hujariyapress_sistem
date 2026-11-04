@@ -1028,3 +1028,1562 @@ async function handleSignatureStepSubmission() {
 }
 
 /* === نهاية الجزء الأول من admin-app.js — يتبع الجزء الثاني مباشرة === */
+/* ==========================================================================
+   حُجرية بريس (Hujariya Press) — المحرك البرمجي الشامل لغرفة الأخبار (admin-app.js)
+   [الجزء الثاني من 2 — يُلصق مباشرة أسفل الجزء الأول]:
+   - اللوحة الرئيسية للصحفي وإحصائياته + إدارة مواده الصحفية وحالاتها
+   - استديو صياغة الأخبار المرحلي (3 مراحل) + الحفظ التلقائي الفوري (Auto-Save) + إدراج الصور بين الفقرات
+   - مركز المراجعات للإدارة (مراجعة الأخبار، اعتماد التوقيعات الثلاثية، وتوثيق الهويات KYC)
+   - سجل الكادر والبحث الذكي بالهوية الصحفية (HP#####) + الملف الشخصي الشامل للصحفي (Dossier)
+   - إعدادات المنصة وتحديث إصدار ميثاق الشرف الصحفي مع المزامنة الحية (Firestore)
+   ========================================================================== */
+
+// ==================== 8. اللوحة الرئيسية للصحفي وإحصائياته ومواده الصحفية ====================
+function getMyPostsList() {
+  const user = state.currentUser;
+  if (!user) return [];
+  if (isUserAdmin(user)) {
+    return state.posts;
+  }
+  return state.posts.filter(
+    (p) =>
+      (p.authorId && p.authorId === user.id) ||
+      (p.authorPressId && normalizePressId(p.authorPressId) === normalizePressId(user.pressId)) ||
+      (p.authorUsername &&
+        String(p.authorUsername).toLowerCase() === String(user.username || "").toLowerCase()) ||
+      (p.author && String(p.author).trim() === String(user.name || "").trim())
+  );
+}
+
+function getPostStatusBadgeHtml(status) {
+  const st = status || "published";
+  if (st === "published") {
+    return `<span class="nr-status-pill status-published"><span class="material-symbols-rounded" style="font-size:15px;">check_circle</span> منشور ومفعل</span>`;
+  }
+  if (st === "pending") {
+    return `<span class="nr-status-pill status-pending"><span class="material-symbols-rounded" style="font-size:15px;">schedule</span> قيد مراجعة رئيس التحرير</span>`;
+  }
+  if (st === "rejected") {
+    return `<span class="nr-status-pill status-rejected"><span class="material-symbols-rounded" style="font-size:15px;">error</span> معاد للتعديل</span>`;
+  }
+  return `<span class="nr-status-pill status-draft"><span class="material-symbols-rounded" style="font-size:15px;">edit_note</span> مسودة محفوظة</span>`;
+}
+
+function renderDashboardAndMyArticles() {
+  const myPosts = getMyPostsList();
+  const publishedCount = myPosts.filter((p) => !p.status || p.status === "published").length;
+  const pendingCount = myPosts.filter((p) => p.status === "pending").length;
+  const draftsCount = myPosts.filter((p) => p.status === "draft" || p.status === "rejected").length;
+
+  const pubEl = document.getElementById("stat-published");
+  const pendEl = document.getElementById("stat-pending");
+  const draftEl = document.getElementById("stat-drafts");
+
+  if (pubEl) pubEl.textContent = publishedCount.toLocaleString("en-US");
+  if (pendEl) pendEl.textContent = pendingCount.toLocaleString("en-US");
+  if (draftEl) draftEl.textContent = draftsCount.toLocaleString("en-US");
+
+  const listBox = document.getElementById("author-articles-list");
+  if (!listBox) return;
+
+  if (!myPosts.length) {
+    listBox.innerHTML = `
+      <div class="empty-state-box">
+        <span class="material-symbols-rounded">article</span>
+        <p>لا توجد مواد صحفية مسجلة بعد. اضغط على «صياغة خبر» للبدء.</p>
+      </div>
+    `;
+    return;
+  }
+
+  listBox.innerHTML = myPosts
+    .slice(0, 40)
+    .map((post) => {
+      const views = Number(post.views || 0).toLocaleString("en-US");
+      const catLabel =
+        (Array.isArray(post.categories) && post.categories[0]) ||
+        post.category ||
+        "عام";
+
+      return `
+        <article class="nr-article-row">
+          <div style="flex:1;min-width:240px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+              ${getPostStatusBadgeHtml(post.status)}
+              <span style="font-size:0.78rem;font-weight:800;color:var(--brand-red);background:var(--crimson-soft);padding:2px 9px;border-radius:6px;">
+                ${escapeHtml(catLabel)}
+              </span>
+              <span style="font-size:0.78rem;color:var(--text-muted);font-weight:700;">
+                ${formatArabicDateTime(post)} • ${views} مشاهدة
+              </span>
+            </div>
+            <h3 style="font-size:1.02rem;font-weight:900;color:var(--text-main);margin-bottom:4px;">
+              ${escapeHtml(post.title || "بدون عنوان")}
+            </h3>
+            <p style="font-size:0.84rem;color:var(--text-muted);">
+              الكاتب: <strong>${escapeHtml(post.author || "هيئة التحرير")}</strong>
+              ${post.authorPressId ? `(<span dir="ltr">${escapeHtml(post.authorPressId)}</span>)` : ""}
+            </p>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn-secondary" style="padding:7px 14px;font-size:0.82rem;" data-edit-post="${escapeHtml(post.id)}">
+              <span class="material-symbols-rounded" style="font-size:18px;">edit</span> تعديل في الاستديو
+            </button>
+            ${
+              isUserAdmin(state.currentUser) || post.status === "draft"
+                ? `<button type="button" class="btn-secondary" style="padding:7px 12px;font-size:0.82rem;color:#b91c1c;border-color:#fecaca;" data-delete-post="${escapeHtml(post.id)}">
+                    <span class="material-symbols-rounded" style="font-size:18px;">delete</span>
+                  </button>`
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  listBox.querySelectorAll("[data-edit-post]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      loadPostIntoStudioForEditing(btn.getAttribute("data-edit-post"));
+    });
+  });
+
+  listBox.querySelectorAll("[data-delete-post]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.getAttribute("data-delete-post");
+      if (!postId || !confirm("هل أنت متأكد من حذف هذه المادة الصحفية نهائياً؟")) return;
+      try {
+        await deleteDoc(doc(db, "posts", postId));
+        showAdminToast("تم حذف المادة الصحفية بنجاح");
+      } catch (_) {
+        showAdminToast("تعذر حذف المادة الصحفية");
+      }
+    });
+  });
+}
+
+// ==================== 9. استديو صياغة الأخبار المرحلي (Multi-Step Studio) + الحفظ التلقائي ====================
+function populateStudioCategoriesSelect() {
+  const catSelect = document.getElementById("post-category");
+  const subSelect = document.getElementById("post-subcategory");
+  if (!catSelect) return;
+
+  const currentVal = catSelect.value;
+  catSelect.innerHTML = [
+    `<option value="" disabled ${!currentVal ? "selected" : ""}>اختر القسم الرئيسي...</option>`,
+    ...state.compasses.map(
+      (c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`
+    )
+  ].join("");
+
+  if (currentVal) catSelect.value = currentVal;
+
+  const updateSubcats = () => {
+    if (!subSelect) return;
+    const selectedName = catSelect.value;
+    const found = state.compasses.find(
+      (c) => c.name === selectedName || c.id === selectedName
+    );
+    const subs = found?.subcategories || [];
+    subSelect.innerHTML = [
+      `<option value="">بدون تصنيف فرعي</option>`,
+      ...subs.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
+    ].join("");
+  };
+
+  catSelect.onchange = () => {
+    updateSubcats();
+    triggerStudioAutoSave();
+  };
+  updateSubcats();
+}
+
+function goToStudioStep(stepNumber) {
+  const target = Math.max(1, Math.min(3, Number(stepNumber) || 1));
+
+  // التحقق من إدخال العنوان في المرحلة الأولى قبل الانتقال للمرحلة الثانية
+  if (target > 1) {
+    const titleVal = (document.getElementById("post-title")?.value || "").trim();
+    if (!titleVal) {
+      showAdminToast("يرجى كتابة العنوان الرئيسي للخبر أولاً قبل الانتقال للخطوة التالية.");
+      document.getElementById("post-title")?.focus();
+      return;
+    }
+  }
+
+  state.studioStep = target;
+
+  [1, 2, 3].forEach((num) => {
+    const stepPane = document.getElementById(`studio-step-${num}`);
+    const marker = document.getElementById(`marker-step-${num}`);
+    if (stepPane) stepPane.classList.toggle("hidden", num !== target);
+    if (marker) marker.classList.toggle("active", num <= target);
+  });
+
+  triggerStudioAutoSave();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function triggerStudioAutoSave() {
+  try {
+    const draftPayload = {
+      savedAt: Date.now(),
+      editingPostId: state.editingPostId,
+      step: state.studioStep,
+      title: document.getElementById("post-title")?.value || "",
+      summary: document.getElementById("post-summary")?.value || "",
+      category: document.getElementById("post-category")?.value || "",
+      subcategory: document.getElementById("post-subcategory")?.value || "",
+      tags: document.getElementById("post-tags")?.value || "",
+      isBreaking: Boolean(document.getElementById("post-is-breaking")?.checked),
+      isFeatured: Boolean(document.getElementById("post-is-featured")?.checked),
+      isQuickNews: Boolean(document.getElementById("post-is-quick")?.checked),
+      imageUrl:
+        state.studioMainImageData ||
+        document.getElementById("post-image-url-input")?.value ||
+        "",
+      videoUrl: document.getElementById("post-video-url")?.value || "",
+      videoType: document.getElementById("post-video-type")?.value || "none",
+      content: document.getElementById("rich-text-editor")?.innerHTML || ""
+    };
+
+    localStorage.setItem(NR_AUTOSAVE_KEY, JSON.stringify(draftPayload));
+
+    const indicator = document.getElementById("auto-save-indicator");
+    if (indicator) {
+      const timeStr = new Date().toLocaleTimeString("ar-YE", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      indicator.textContent = `تم الحفظ التلقائي ${timeStr}`;
+    }
+  } catch (_) {}
+}
+
+function restoreStudioAutoSavedDraft() {
+  try {
+    const raw = localStorage.getItem(NR_AUTOSAVE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || (!saved.title && !saved.content)) return;
+
+    state.editingPostId = saved.editingPostId || null;
+    state.studioMainImageData = saved.imageUrl || "";
+
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val || "";
+    };
+
+    setVal("post-title", saved.title);
+    setVal("post-summary", saved.summary);
+    populateStudioCategoriesSelect();
+    setVal("post-category", saved.category);
+    if (document.getElementById("post-category")?.onchange) {
+      document.getElementById("post-category").onchange();
+    }
+    setVal("post-subcategory", saved.subcategory);
+    setVal("post-tags", saved.tags);
+    setVal("post-video-url", saved.videoUrl);
+    setVal("post-video-type", saved.videoType || "none");
+
+    if (saved.imageUrl && !saved.imageUrl.startsWith("data:")) {
+      setVal("post-image-url-input", saved.imageUrl);
+    }
+    renderStudioMainImagePreview(saved.imageUrl);
+
+    if (document.getElementById("post-is-breaking")) {
+      document.getElementById("post-is-breaking").checked = Boolean(saved.isBreaking);
+    }
+    if (document.getElementById("post-is-featured")) {
+      document.getElementById("post-is-featured").checked = Boolean(saved.isFeatured);
+    }
+    if (document.getElementById("post-is-quick")) {
+      document.getElementById("post-is-quick").checked = Boolean(saved.isQuickNews);
+    }
+
+    const editor = document.getElementById("rich-text-editor");
+    if (editor && saved.content) {
+      editor.innerHTML = saved.content;
+    }
+
+    if (saved.step) {
+      goToStudioStep(saved.step);
+    }
+  } catch (_) {}
+}
+
+function renderStudioMainImagePreview(imgSrc = "") {
+  const previewBox = document.getElementById("studio-main-img-preview");
+  if (!previewBox) return;
+  if (!imgSrc) {
+    previewBox.innerHTML = "";
+    previewBox.classList.add("hidden");
+    return;
+  }
+  previewBox.classList.remove("hidden");
+  previewBox.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;background:var(--bg-page);padding:8px 12px;border-radius:8px;border:1px solid var(--border-light);">
+      <img src="${escapeHtml(imgSrc)}" alt="معاينة" style="width:78px;height:52px;object-fit:cover;border-radius:6px;">
+      <span style="font-size:0.82rem;font-weight:800;color:var(--text-body);">الصورة البارزة جاهزة للنشر</span>
+      <button type="button" id="remove-studio-main-img-btn" class="btn-secondary" style="margin-right:auto;padding:4px 10px;font-size:0.75rem;">إزالة</button>
+    </div>
+  `;
+  document.getElementById("remove-studio-main-img-btn")?.addEventListener("click", () => {
+    state.studioMainImageData = "";
+    const fileInp = document.getElementById("post-main-image");
+    const urlInp = document.getElementById("post-image-url-input");
+    if (fileInp) fileInp.value = "";
+    if (urlInp) urlInp.value = "";
+    renderStudioMainImagePreview("");
+    triggerStudioAutoSave();
+  });
+}
+
+function resetStudioFormCompletely() {
+  state.editingPostId = null;
+  state.studioMainImageData = "";
+  state.studioStep = 1;
+  localStorage.removeItem(NR_AUTOSAVE_KEY);
+
+  document.getElementById("article-studio-form")?.reset();
+  const editor = document.getElementById("rich-text-editor");
+  if (editor) editor.innerHTML = "";
+  renderStudioMainImagePreview("");
+  goToStudioStep(1);
+}
+
+function loadPostIntoStudioForEditing(postId) {
+  const post = state.posts.find((p) => p.id === postId);
+  if (!post) return;
+
+  state.editingPostId = post.id;
+  state.studioMainImageData = post.imageUrl || "";
+
+  switchNewsroomView("view-write-studio");
+  populateStudioCategoriesSelect();
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setVal("post-title", post.title || "");
+  setVal("post-summary", post.summary || "");
+  const mainCat =
+    (Array.isArray(post.categories) && post.categories[0]) || post.category || "";
+  setVal("post-category", mainCat);
+  if (document.getElementById("post-category")?.onchange) {
+    document.getElementById("post-category").onchange();
+  }
+  setVal("post-subcategory", post.subcategory || "");
+  setVal(
+    "post-tags",
+    Array.isArray(post.tags)
+      ? post.tags.map((t) => `#${String(t).replace(/^#+/, "")}`).join(" ")
+      : ""
+  );
+  setVal("post-video-url", post.videoUrl || "");
+  setVal("post-video-type", post.videoType || "none");
+  if (post.imageUrl && !post.imageUrl.startsWith("data:")) {
+    setVal("post-image-url-input", post.imageUrl);
+  }
+  renderStudioMainImagePreview(post.imageUrl || "");
+
+  if (document.getElementById("post-is-breaking")) {
+    document.getElementById("post-is-breaking").checked = Boolean(post.isBreaking);
+  }
+  if (document.getElementById("post-is-featured")) {
+    document.getElementById("post-is-featured").checked = Boolean(post.isFeatured);
+  }
+  if (document.getElementById("post-is-quick")) {
+    document.getElementById("post-is-quick").checked = Boolean(post.isQuickNews);
+  }
+
+  const editor = document.getElementById("rich-text-editor");
+  if (editor) {
+    editor.innerHTML = post.content || "";
+  }
+
+  goToStudioStep(1);
+  showAdminToast("تم تحميل المادة الصحفية في الاستديو للتعديل");
+}
+
+async function handleSaveOrPublishArticle(saveAsDraft = false) {
+  const user = state.currentUser;
+  if (!user) return;
+
+  // التحقق من اعتماد ميثاق الشرف قبل السماح بالنشر للصحفي الجديد
+  if (!saveAsDraft && !isUserAdmin(user)) {
+    const sigStatus = user.signatureStatus || "none";
+    const canPublishWhileUpdating = Boolean(user.everApprovedCharter);
+    if (sigStatus !== "approved" && !canPublishWhileUpdating) {
+      showAdminToast(
+        "لا يمكن النشر قبل اعتماد توقيعك على ميثاق الشرف الصحفي من الإدارة. يمكنك حفظ الخبر كمسودة الآن."
+      );
+      return;
+    }
+  }
+
+  const title = (document.getElementById("post-title")?.value || "").trim();
+  const summary = (document.getElementById("post-summary")?.value || "").trim();
+  const category = (document.getElementById("post-category")?.value || "").trim() || "السياسة اليمنية";
+  const subcategory = (document.getElementById("post-subcategory")?.value || "").trim();
+  const rawTags = (document.getElementById("post-tags")?.value || "").trim();
+  const contentHtml = (document.getElementById("rich-text-editor")?.innerHTML || "").trim();
+
+  if (!title) {
+    goToStudioStep(1);
+    showAdminToast("يرجى كتابة العنوان الرئيسي للخبر");
+    return;
+  }
+
+  if (!saveAsDraft && !stripHtml(contentHtml) && !summary) {
+    goToStudioStep(3);
+    showAdminToast("يرجى صياغة محتوى الخبر قبل الإرسال");
+    return;
+  }
+
+  const tagsArray = rawTags
+    .split(/[\s,،]+/)
+    .map((t) => t.replace(/^#+/, "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  const canDirectPublish =
+    isUserAdmin(user) ||
+    Boolean(user.directPublish) ||
+    user.role === "trusted_writer";
+
+  const finalStatus = saveAsDraft
+    ? "draft"
+    : canDirectPublish
+    ? "published"
+    : "pending";
+
+  const isBreaking = Boolean(document.getElementById("post-is-breaking")?.checked);
+  const imageUrl =
+    state.studioMainImageData ||
+    (document.getElementById("post-image-url-input")?.value || "").trim();
+
+  const postPayload = {
+    title,
+    summary,
+    category,
+    categories: [category],
+    subcategory,
+    tags: tagsArray,
+    content: contentHtml || `<p>${escapeHtml(summary)}</p>`,
+    imageUrl,
+    videoUrl: (document.getElementById("post-video-url")?.value || "").trim(),
+    videoType: document.getElementById("post-video-type")?.value || "none",
+    isBreaking,
+    breakingExpiresAt: isBreaking ? Date.now() + 6 * 3600 * 1000 : null,
+    isFeatured: Boolean(document.getElementById("post-is-featured")?.checked),
+    isQuickNews: Boolean(document.getElementById("post-is-quick")?.checked),
+    status: finalStatus,
+    updatedAt: Date.now()
+  };
+
+  try {
+    if (state.editingPostId) {
+      await updateDoc(doc(db, "posts", state.editingPostId), postPayload);
+    } else {
+      await addDoc(collection(db, "posts"), {
+        ...postPayload,
+        author: user.name || "هيئة التحرير",
+        authorId: user.id || "",
+        authorPressId: user.pressId || "",
+        authorUsername: user.username || "",
+        authorAvatar: user.avatar || "",
+        authorVerified: Boolean(user.verified || isUserAdmin(user)),
+        views: 0,
+        createdAt: Date.now(),
+        createdTimestamp: serverTimestamp()
+      });
+    }
+
+    resetStudioFormCompletely();
+    switchNewsroomView("view-dashboard");
+
+    if (finalStatus === "draft") {
+      showAdminToast("تم حفظ المادة الصحفية في المسودات بنجاح ✓");
+    } else if (finalStatus === "pending") {
+      showAdminToast("تم إرسال المادة الصحفية إلى صندوق مراجعة رئيس التحرير ✓");
+    } else {
+      showAdminToast("تم نشر الخبر مباشرة على الموقع العام بنجاح ✓");
+    }
+  } catch (err) {
+    console.error(err);
+    showAdminToast("حدث خطأ أثناء حفظ الخبر، تحقق من الاتصال");
+  }
+}
+
+// ==================== 10. الملف الشخصي للصحفي، الهوية الثابتة (HP)، ونموذج التوثيق (KYC) ====================
+function populateMyProfileView() {
+  const user = state.currentUser;
+  if (!user) return;
+
+  const freshUser =
+    state.staff.find((s) => s.id === user.id) || user;
+  state.currentUser = { ...user, ...freshUser };
+
+  const u = state.currentUser;
+  const pressId = normalizePressId(u.pressId || "HP10001");
+  const avatarUrl =
+    u.avatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      u.name || "HP"
+    )}&background=b80d38&color=fff`;
+
+  document.getElementById("my-profile-avatar")?.setAttribute("src", avatarUrl);
+  const nameEl = document.getElementById("my-profile-name");
+  if (nameEl) nameEl.textContent = u.name || "صحفي في حُجرية بريس";
+
+  const pidEl = document.getElementById("my-press-id");
+  if (pidEl) pidEl.textContent = pressId;
+
+  const verBadge = document.getElementById("my-verification-badge");
+  if (verBadge) {
+    const isVer = Boolean(u.verified || isUserAdmin(u));
+    verBadge.className = `verification-status ${isVer ? "verified" : "unverified"}`;
+    verBadge.textContent = isVer
+      ? "✓ موثق بالشارة الزرقاء ومعتمد الميثاق"
+      : u.kycStatus === "pending"
+      ? "⏳ طلب التوثيق قيد مراجعة الإدارة"
+      : "غير موثق (أكمل بياناتك لطلب الشارة الزرقاء)";
+  }
+
+  const setInp = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setInp("kyc-email", u.contactEmail || u.email || "");
+  setInp("kyc-whatsapp", u.whatsapp || "");
+  setInp("kyc-legal-name", u.legalName || u.name || "");
+  setInp("kyc-doc-number", u.docNumber || "");
+  setInp("kyc-doc-type", u.docType || "id_card");
+  setInp("kyc-dob", u.dob || "");
+  setInp("kyc-issue-date", u.docIssueDate || "");
+
+  updateLiveCalculatedAgeDisplay(u.dob || "");
+}
+
+function updateLiveCalculatedAgeDisplay(dobValue) {
+  const age = calculateAgeFromDob(dobValue);
+  const ageDisplay = document.getElementById("kyc-auto-age-display");
+  const cardAgeBadge = document.getElementById("my-auto-age-badge");
+
+  if (age !== null) {
+    if (ageDisplay) ageDisplay.textContent = `${age} سنة (محسوب تلقائياً من تاريخ الميلاد)`;
+    if (cardAgeBadge) cardAgeBadge.textContent = `العمر الفعلي: ${age} سنة`;
+  } else {
+    if (ageDisplay) ageDisplay.textContent = "أدخل تاريخ الميلاد لحساب العمر تلقائياً";
+    if (cardAgeBadge) cardAgeBadge.textContent = "العمر: يُحسب تلقائياً عند إدخال تاريخ الميلاد";
+  }
+}
+
+async function handleKycFormSubmission(e) {
+  e.preventDefault();
+  const user = state.currentUser;
+  if (!user || !user.id || user.id === "master-admin") {
+    showAdminToast("حساب المدير العام موثق تلقائياً.");
+    return;
+  }
+
+  // يجب أن يكون الصحفي قد وقّع على ميثاق الشرف أولاً ليرتبط التوثيق بالميثاق
+  if (!user.signatureStatus || user.signatureStatus === "none") {
+    showAdminToast("يجب التوقيع على ميثاق الشرف الصحفي أولاً قبل طلب التوثيق والشارة الزرقاء.");
+    openCharterPledgeModal("first_time");
+    return;
+  }
+
+  const contactEmail = (document.getElementById("kyc-email")?.value || "").trim();
+  const whatsapp = (document.getElementById("kyc-whatsapp")?.value || "").trim();
+  const legalName = (document.getElementById("kyc-legal-name")?.value || "").trim();
+  const docNumber = (document.getElementById("kyc-doc-number")?.value || "").trim();
+  const docType = document.getElementById("kyc-doc-type")?.value || "id_card";
+  const dob = document.getElementById("kyc-dob")?.value || "";
+  const docIssueDate = document.getElementById("kyc-issue-date")?.value || "";
+
+  if (!legalName || !docNumber || !dob || !docIssueDate) {
+    showAdminToast("يرجى تعبئة الاسم الرباعي ورقم الوثيقة وتاريخ الميلاد وتاريخ الإصدار بالكامل.");
+    return;
+  }
+
+  const frontFile = document.getElementById("kyc-doc-front")?.files?.[0];
+  const backFile = document.getElementById("kyc-doc-back")?.files?.[0];
+  const selfieFile = document.getElementById("kyc-selfie")?.files?.[0];
+
+  const submitBtn = document.getElementById("submit-kyc-btn");
+  if (submitBtn) submitBtn.disabled = true;
+  showAdminToast("جاري ضغط الصور ورفع ملف الهوية الصحفية...");
+
+  try {
+    const docFrontImg = frontFile
+      ? await compressImageFileToDataUrl(frontFile, 950, 0.76)
+      : user.docFrontImg || "";
+    const docBackImg = backFile
+      ? await compressImageFileToDataUrl(backFile, 950, 0.76)
+      : user.docBackImg || "";
+    const selfieImg = selfieFile
+      ? await compressImageFileToDataUrl(selfieFile, 850, 0.78)
+      : user.selfieImg || "";
+
+    if (!docFrontImg || !selfieImg) {
+      showAdminToast("يرجى إرفاق صورة الوثيقة الرسمية وصورة السيلفي الواضحة للتحقق.");
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+
+    const kycPayload = {
+      contactEmail,
+      email: contactEmail || user.email || "",
+      whatsapp,
+      legalName,
+      docNumber,
+      docType,
+      dob,
+      docIssueDate,
+      calculatedAge: calculateAgeFromDob(dob),
+      docFrontImg,
+      docBackImg,
+      selfieImg,
+      avatar: user.avatar || selfieImg,
+      kycStatus: "pending",
+      kycSubmittedAt: Date.now()
+    };
+
+    await updateDoc(doc(db, "staff", user.id), kycPayload);
+    state.currentUser = { ...state.currentUser, ...kycPayload };
+    populateMyProfileView();
+    showAdminToast("تم إرسال بيانات الهوية الصحفية وطلب التوثيق لمراجعة الإدارة بنجاح ✓");
+  } catch (err) {
+    console.error(err);
+    showAdminToast("حدث خطأ أثناء رفع الوثائق، يرجى المحاولة بصور أصغر حجماً.");
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+// ==================== 11. مركز المراجعات للإدارة (منشورات • توقيعات • توثيقات KYC) ====================
+function renderAdminReviewsAndStaff() {
+  if (!isUserAdmin(state.currentUser)) return;
+
+  const pendingPosts = state.posts.filter((p) => p.status === "pending");
+  const pendingSigs = state.staff.filter((s) => s.signatureStatus === "pending");
+  const pendingKyc = state.staff.filter((s) => s.kycStatus === "pending");
+
+  const totalPending = pendingPosts.length + pendingSigs.length + pendingKyc.length;
+  const badge = document.getElementById("reviews-badge");
+  if (badge) {
+    badge.textContent = String(totalPending);
+    badge.classList.toggle("hidden", totalPending === 0);
+  }
+
+  // 1. تبويب مراجعة الأخبار المعلقة
+  const revPostsBox = document.getElementById("rev-posts");
+  if (revPostsBox) {
+    if (!pendingPosts.length) {
+      revPostsBox.innerHTML = `<div class="empty-state-box"><p>لا توجد منشورات معلقة بانتظار المراجعة حالياً.</p></div>`;
+    } else {
+      revPostsBox.innerHTML = pendingPosts
+        .map(
+          (p) => `
+          <article class="nr-article-row">
+            <div style="flex:1;min-width:240px;">
+              <span class="nr-status-pill status-pending">بانتظار الاعتماد</span>
+              <h3 style="font-size:1.05rem;font-weight:900;margin:6px 0 4px;">${escapeHtml(p.title)}</h3>
+              <p style="font-size:0.84rem;color:var(--text-muted);">
+                الكاتب: <strong>${escapeHtml(p.author)}</strong> (${escapeHtml(p.authorPressId || "HP")}) • القسم: ${escapeHtml(p.category || "عام")}
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn-primary" style="padding:8px 16px;font-size:0.82rem;" data-approve-post="${escapeHtml(p.id)}">
+                ✓ اعتماد ونشر فوري
+              </button>
+              <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:0.82rem;" data-review-edit-post="${escapeHtml(p.id)}">
+                معاينة وتعديل
+              </button>
+              <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:0.82rem;color:#b91c1c;" data-reject-post="${escapeHtml(p.id)}">
+                إعادة للمحرر
+              </button>
+            </div>
+          </article>
+        `
+        )
+        .join("");
+
+      revPostsBox.querySelectorAll("[data-approve-post]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const pid = btn.getAttribute("data-approve-post");
+          await updateDoc(doc(db, "posts", pid), {
+            status: "published",
+            approvedAt: Date.now()
+          });
+          showAdminToast("تم اعتماد الخبر ونشره على الموقع العام ✓");
+        });
+      });
+
+      revPostsBox.querySelectorAll("[data-review-edit-post]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          loadPostIntoStudioForEditing(btn.getAttribute("data-review-edit-post"));
+        });
+      });
+
+      revPostsBox.querySelectorAll("[data-reject-post]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const pid = btn.getAttribute("data-reject-post");
+          await updateDoc(doc(db, "posts", pid), { status: "rejected" });
+          showAdminToast("تمت إعادة المادة للمحرر لمراجعتها");
+        });
+      });
+    }
+  }
+
+  // 2. تبويب مراجعة توقيعات ميثاق الشرف الصحفي
+  const revSigsBox = document.getElementById("rev-sigs");
+  if (revSigsBox) {
+    if (!pendingSigs.length) {
+      revSigsBox.innerHTML = `<div class="empty-state-box"><p>لا توجد توقيعات جديدة بانتظار المراجعة حالياً.</p></div>`;
+    } else {
+      revSigsBox.innerHTML = pendingSigs
+        .map((s) => {
+          const sigs = Array.isArray(s.signatures)
+            ? s.signatures
+            : s.primarySignature
+            ? [s.primarySignature]
+            : [];
+          return `
+            <div class="nr-article-row" style="flex-direction:column;align-items:stretch;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div>
+                  <strong>${escapeHtml(s.name)}</strong>
+                  <span style="font-family:monospace;background:#111;color:#fff;padding:2px 8px;border-radius:4px;margin-right:6px;" dir="ltr">${escapeHtml(s.pressId || "HP")}</span>
+                  <span style="font-size:0.8rem;color:var(--text-muted);margin-right:8px;">
+                    (${s.signatureType === "update" ? "توقيع تحديث الميثاق" : "3 توقيعات مطابقة لأول مرة"} — الإصدار ${s.signedCharterVersion || 1})
+                  </span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button type="button" class="btn-primary" style="padding:7px 14px;font-size:0.82rem;" data-approve-sig="${escapeHtml(s.id)}">
+                    ✓ اعتماد التوقيع وتفعيل الحساب
+                  </button>
+                  <button type="button" class="btn-secondary" style="padding:7px 14px;font-size:0.82rem;color:#b91c1c;" data-reject-sig="${escapeHtml(s.id)}">
+                    رفض وطلب إعادة التوقيع
+                  </button>
+                  <button type="button" class="btn-secondary" style="padding:7px 12px;font-size:0.82rem;" data-open-dossier="${escapeHtml(s.id)}">
+                    فتح الملف الكامل
+                  </button>
+                </div>
+              </div>
+              <div class="sig-preview-grid">
+                ${sigs
+                  .map(
+                    (img, i) => `
+                  <div class="sig-preview-box">
+                    <small style="display:block;font-weight:800;color:var(--text-muted);margin-bottom:4px;">نموذج التوقيع (${i + 1})</small>
+                    <img src="${escapeHtml(img)}" alt="توقيع">
+                  </div>
+                `
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      revSigsBox.querySelectorAll("[data-approve-sig]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const sid = btn.getAttribute("data-approve-sig");
+          await updateDoc(doc(db, "staff", sid), {
+            signatureStatus: "approved",
+            everApprovedCharter: true,
+            signatureApprovedAt: Date.now()
+          });
+          showAdminToast("تم اعتماد توقيع ميثاق الشرف الصحفي وتفعيل النشر للصحفي ✓");
+        });
+      });
+
+      revSigsBox.querySelectorAll("[data-reject-sig]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const sid = btn.getAttribute("data-reject-sig");
+          await updateDoc(doc(db, "staff", sid), {
+            signatureStatus: "rejected"
+          });
+          showAdminToast("تم رفض التوقيع وسيُطلب من الصحفي إعادة التوقيع بدقة");
+        });
+      });
+
+      revSigsBox.querySelectorAll("[data-open-dossier]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          openAuthorDossierModal(btn.getAttribute("data-open-dossier"));
+        });
+      });
+    }
+  }
+
+  // 3. تبويب مراجعة طلبات توثيق الهوية الرسمية والشارة الزرقاء (KYC)
+  const revKycBox = document.getElementById("rev-kyc");
+  if (revKycBox) {
+    if (!pendingKyc.length) {
+      revKycBox.innerHTML = `<div class="empty-state-box"><p>لا توجد طلبات توثيق هوية معلقة حالياً.</p></div>`;
+    } else {
+      revKycBox.innerHTML = pendingKyc
+        .map((s) => {
+          const age = calculateAgeFromDob(s.dob);
+          return `
+            <div class="nr-article-row">
+              <div>
+                <strong>${escapeHtml(s.name)}</strong> — الاسم القانوني: <strong>${escapeHtml(s.legalName || "")}</strong>
+                <span style="font-family:monospace;background:#111;color:#fff;padding:2px 8px;border-radius:4px;margin-right:6px;" dir="ltr">${escapeHtml(s.pressId || "")}</span>
+                <p style="font-size:0.83rem;color:var(--text-muted);margin-top:4px;">
+                  رقم الوثيقة: <strong>${escapeHtml(s.docNumber || "")}</strong> • تاريخ الإصدار: ${escapeHtml(s.docIssueDate || "-")} • العمر التلقائي: <strong>${age !== null ? `${age} سنة` : "-"}</strong>
+                </p>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" class="btn-secondary" style="padding:7px 14px;font-size:0.82rem;" data-open-dossier="${escapeHtml(s.id)}">
+                  فحص الوثائق والملف الشامل
+                </button>
+                <button type="button" class="btn-primary" style="padding:7px 14px;font-size:0.82rem;" data-approve-kyc="${escapeHtml(s.id)}">
+                  ✓ توثيق ومنح الشارة الزرقاء
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      revKycBox.querySelectorAll("[data-open-dossier]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          openAuthorDossierModal(btn.getAttribute("data-open-dossier"));
+        });
+      });
+
+      revKycBox.querySelectorAll("[data-approve-kyc]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const sid = btn.getAttribute("data-approve-kyc");
+          await updateDoc(doc(db, "staff", sid), {
+            kycStatus: "approved",
+            verified: true,
+            signatureStatus: "approved",
+            everApprovedCharter: true
+          });
+          showAdminToast("تم توثيق هوية الصحفي ومنحه الشارة الزرقاء ✓");
+        });
+      });
+    }
+  }
+
+  renderStaffDirectoryGrid();
+}
+
+// ==================== 12. سجل الكادر والبحث الذكي بالهوية (HP) + الملف الشخصي الشامل (Dossier) ====================
+function renderStaffDirectoryGrid() {
+  const grid = document.getElementById("staff-grid");
+  if (!grid) return;
+
+  const query = (document.getElementById("staff-search-input")?.value || "")
+    .trim()
+    .toLowerCase();
+  const cleanQueryPressId = normalizePressId(query);
+
+  const filteredStaff = state.staff.filter((s) => {
+    if (!query) return true;
+    const sPress = normalizePressId(s.pressId || "");
+    const haystack = `${s.name || ""} ${s.legalName || ""} ${s.username || ""} ${
+      s.jobTitle || ""
+    } ${s.whatsapp || ""} ${s.contactEmail || ""}`.toLowerCase();
+    return haystack.includes(query) || (cleanQueryPressId && sPress.includes(cleanQueryPressId));
+  });
+
+  if (!filteredStaff.length) {
+    grid.innerHTML = `<div class="empty-state-box" style="grid-column:1/-1;"><p>لا يوجد صحفي مطابق لبحثك.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = filteredStaff
+    .map((s) => {
+      const av =
+        s.avatar ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          s.name || "HP"
+        )}&background=b80d38&color=fff`;
+      const age = calculateAgeFromDob(s.dob);
+      const memberPostsCount = state.posts.filter(
+        (p) => p.authorId === s.id || p.author === s.name
+      ).length;
+
+      return `
+        <article class="staff-card-item" data-open-staff-dossier="${escapeHtml(s.id)}">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <img src="${escapeHtml(av)}" alt="${escapeHtml(s.name)}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--brand-red);">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:5px;">
+                <h3 style="font-size:1rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.name)}</h3>
+                ${
+                  s.verified
+                    ? `<span class="material-symbols-rounded" style="color:#0284c7;font-size:18px;">verified</span>`
+                    : ""
+                }
+              </div>
+              <span style="font-size:0.78rem;color:var(--text-muted);font-weight:700;display:block;">${escapeHtml(
+                s.jobTitle || "صحفي"
+              )}</span>
+            </div>
+            <span style="font-family:monospace;background:#111;color:#fff;padding:3px 9px;border-radius:6px;font-weight:900;font-size:0.84rem;" dir="ltr">
+              ${escapeHtml(normalizePressId(s.pressId || "HP"))}
+            </span>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;font-weight:800;padding-top:10px;border-top:1px solid var(--border-light);color:var(--text-body);">
+            <span>المقالات: ${memberPostsCount}</span>
+            <span>${age !== null ? `العمر: ${age} سنة` : "العمر: غير مسجل"}</span>
+            <span style="color:var(--brand-red);">عرض الملف الشامل ←</span>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  grid.querySelectorAll("[data-open-staff-dossier]").forEach((card) => {
+    card.addEventListener("click", () => {
+      openAuthorDossierModal(card.getAttribute("data-open-staff-dossier"));
+    });
+  });
+}
+
+function openAuthorDossierModal(staffId) {
+  const member = state.staff.find((s) => s.id === staffId);
+  if (!member) return;
+
+  state.selectedDossierStaffId = member.id;
+  const overlay = document.getElementById("author-dossier-overlay");
+  const body = document.getElementById("dossier-modal-body");
+  if (!overlay || !body) return;
+
+  const age = calculateAgeFromDob(member.dob);
+  const memberPosts = state.posts.filter(
+    (p) => p.authorId === member.id || p.author === member.name
+  );
+  const pubCount = memberPosts.filter((p) => !p.status || p.status === "published").length;
+  const pendCount = memberPosts.filter((p) => p.status === "pending").length;
+  const totalViews = memberPosts.reduce((sum, p) => sum + Number(p.views || 0), 0);
+
+  const cleanWa = String(member.whatsapp || "").replace(/[^\d]/g, "");
+  const waHref = cleanWa ? `https://wa.me/${cleanWa}` : "";
+  const mailHref = member.contactEmail || member.email
+    ? `mailto:${encodeURIComponent(member.contactEmail || member.email)}`
+    : "";
+
+  const sigs = Array.isArray(member.signatures)
+    ? member.signatures
+    : member.primarySignature
+    ? [member.primarySignature]
+    : [];
+
+  body.innerHTML = `
+    <!-- 1. الترويسة والهوية الصحفية والتواصل الفوري -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;background:var(--bg-page);padding:18px;border-radius:12px;border:1px solid var(--border-light);margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="${escapeHtml(
+          member.avatar ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=b80d38&color=fff`
+        )}" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--brand-red);">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <h3 style="font-size:1.25rem;font-weight:900;">${escapeHtml(member.name)}</h3>
+            <span style="font-family:monospace;background:#111;color:#fff;padding:3px 10px;border-radius:6px;font-weight:900;" dir="ltr">
+              ${escapeHtml(normalizePressId(member.pressId || "HP"))}
+            </span>
+            ${
+              member.verified
+                ? `<span class="nr-status-pill status-published">✓ موثق بالشارة الزرقاء</span>`
+                : `<span class="nr-status-pill status-draft">غير موثق</span>`
+            }
+          </div>
+          <p style="font-size:0.86rem;color:var(--text-muted);font-weight:700;margin-top:4px;">
+            المسمى: ${escapeHtml(member.jobTitle || "صحفي")} • اسم المستخدم: <code dir="ltr">${escapeHtml(member.username || "")}</code>
+            ${age !== null ? ` • <strong>العمر التلقائي: ${age} سنة</strong>` : ""}
+          </p>
+        </div>
+      </div>
+
+      <!-- أزرار التواصل المباشر (واتساب + بريد إلكتروني) -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${
+          waHref
+            ? `<a href="${escapeHtml(waHref)}" target="_blank" rel="noopener" class="contact-action-btn wa-btn">
+                <span class="material-symbols-rounded">chat</span> مراسلة واتساب (${escapeHtml(member.whatsapp)})
+              </a>`
+            : `<span style="font-size:0.8rem;color:var(--text-muted);padding:6px;">لا يوجد رقم واتساب</span>`
+        }
+        ${
+          mailHref
+            ? `<a href="${escapeHtml(mailHref)}" class="contact-action-btn mail-btn">
+                <span class="material-symbols-rounded">mail</span> مراسلة بريد (${escapeHtml(member.contactEmail || member.email)})
+              </a>`
+            : ""
+        }
+      </div>
+    </div>
+
+    <!-- 2. إحصائيات النشاط الصحفي -->
+    <div class="stats-grid" style="margin-bottom:20px;">
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-info"><h3>المقالات المنشورة</h3><strong>${pubCount}</strong></div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-info"><h3>قيد المراجعة</h3><strong>${pendCount}</strong></div>
+      </div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-info"><h3>إجمالي المشاهدات المحققة</h3><strong>${totalViews.toLocaleString("en-US")}</strong></div>
+      </div>
+    </div>
+
+    <!-- 3. التحكم الإداري السريع بالصلاحيات والشارة الزرقاء -->
+    <div style="background:#fff;border:1px solid var(--border-light);border-radius:10px;padding:16px;margin-bottom:20px;">
+      <h4 style="font-weight:900;margin-bottom:12px;color:var(--brand-red);">صلاحيات الصحفي والاعتماد الإداري</h4>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="dossier-toggle-verified-btn" class="btn-primary" style="padding:8px 16px;font-size:0.84rem;">
+          ${member.verified ? "إلغاء الشارة الزرقاء" : "✓ منح الشارة الزرقاء والتوثيق"}
+        </button>
+        <button type="button" id="dossier-toggle-direct-btn" class="btn-secondary" style="padding:8px 16px;font-size:0.84rem;">
+          ${member.directPublish ? "تحويل إلى (يخضع للمراجعة)" : "⚡ منح صلاحية النشر المباشر"}
+        </button>
+        <button type="button" id="dossier-approve-sig-btn" class="btn-secondary" style="padding:8px 16px;font-size:0.84rem;">
+          ✓ اعتماد توقيع ميثاق الشرف
+        </button>
+        <button type="button" id="dossier-reject-sig-btn" class="btn-secondary" style="padding:8px 16px;font-size:0.84rem;color:#b91c1c;">
+          طلب إعادة التوقيع على الميثاق
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. بيانات الوثيقة القانونية والهوية الرسمية (KYC) -->
+    <div style="background:#fff;border:1px solid var(--border-light);border-radius:10px;padding:16px;margin-bottom:20px;">
+      <h4 style="font-weight:900;margin-bottom:10px;">بيانات الهوية الرسمية والوثائق المرفقة</h4>
+      <p style="font-size:0.88rem;margin-bottom:12px;">
+        <strong>الاسم القانوني الكامل:</strong> ${escapeHtml(member.legalName || "غير مسجل")} |
+        <strong>نوع الوثيقة:</strong> ${member.docType === "passport" ? "جواز سفر" : "بطاقة شخصية"} |
+        <strong>رقم الوثيقة:</strong> ${escapeHtml(member.docNumber || "غير مسجل")} |
+        <strong>تاريخ الإصدار:</strong> ${escapeHtml(member.docIssueDate || "-")} |
+        <strong>تاريخ الميلاد:</strong> ${escapeHtml(member.dob || "-")} (${age !== null ? `${age} سنة` : "-"})
+      </p>
+      <div class="sig-preview-grid">
+        ${
+          member.docFrontImg
+            ? `<div class="sig-preview-box"><small>وجه الوثيقة</small><img src="${escapeHtml(member.docFrontImg)}" alt="وجه الوثيقة" style="max-height:150px;"></div>`
+            : ""
+        }
+        ${
+          member.docBackImg
+            ? `<div class="sig-preview-box"><small>ظهر الوثيقة</small><img src="${escapeHtml(member.docBackImg)}" alt="ظهر الوثيقة" style="max-height:150px;"></div>`
+            : ""
+        }
+        ${
+          member.selfieImg
+            ? `<div class="sig-preview-box"><small>صورة التحقق (سيلفي)</small><img src="${escapeHtml(member.selfieImg)}" alt="سيلفي" style="max-height:150px;"></div>`
+            : ""
+        }
+      </div>
+    </div>
+
+    <!-- 5. سجل التوقيعات الرقمية على ميثاق الشرف الصحفي -->
+    <div style="background:#fff;border:1px solid var(--border-light);border-radius:10px;padding:16px;margin-bottom:20px;">
+      <h4 style="font-weight:900;margin-bottom:8px;">
+        التوقيعات الرقمية المحفوظة على ميثاق الشرف (الحالة: ${escapeHtml(member.signatureStatus || "لم يوقع بعد")} — الإصدار: ${member.signedCharterVersion || 0})
+      </h4>
+      ${
+        sigs.length
+          ? `<div class="sig-preview-grid">
+              ${sigs
+                .map(
+                  (img, idx) =>
+                    `<div class="sig-preview-box"><small>التوقيع (${idx + 1})</small><img src="${escapeHtml(img)}" alt="توقيع"></div>`
+                )
+                .join("")}
+            </div>`
+          : `<p style="font-size:0.85rem;color:var(--text-muted);">لا توجد توقيعات مرفوعة لهذا الصحفي حتى الآن.</p>`
+      }
+    </div>
+
+    <!-- 6. أرشيف مقالات ونشاط الصحفي -->
+    <div>
+      <h4 style="font-weight:900;margin-bottom:10px;">أحدث المواد الصحفية للكاتب (${memberPosts.length})</h4>
+      ${
+        memberPosts.length
+          ? memberPosts
+              .slice(0, 10)
+              .map(
+                (p) => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border-light);font-size:0.88rem;">
+                  <strong>${escapeHtml(p.title)}</strong>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    ${getPostStatusBadgeHtml(p.status)}
+                    <span>${Number(p.views || 0)} مشاهدة</span>
+                  </div>
+                </div>
+              `
+              )
+              .join("")
+          : `<p style="font-size:0.85rem;color:var(--text-muted);">لم ينشر أي مقالات بعد.</p>`
+      }
+    </div>
+  `;
+
+  overlay.classList.remove("hidden");
+
+  document.getElementById("dossier-toggle-verified-btn")?.addEventListener("click", async () => {
+    const newVer = !member.verified;
+    await updateDoc(doc(db, "staff", member.id), { verified: newVer, kycStatus: newVer ? "approved" : member.kycStatus || "none" });
+    showAdminToast(newVer ? "تم منح الشارة الزرقاء للصحفي ✓" : "تم إلغاء الشارة الزرقاء");
+    openAuthorDossierModal(member.id);
+  });
+
+  document.getElementById("dossier-toggle-direct-btn")?.addEventListener("click", async () => {
+    const newDirect = !member.directPublish;
+    await updateDoc(doc(db, "staff", member.id), { directPublish: newDirect });
+    showAdminToast(newDirect ? "تم منح صلاحية النشر المباشر ✓" : "تم تفعيل المراجعة المسبقة لمنشورات الصحفي");
+    openAuthorDossierModal(member.id);
+  });
+
+  document.getElementById("dossier-approve-sig-btn")?.addEventListener("click", async () => {
+    await updateDoc(doc(db, "staff", member.id), {
+      signatureStatus: "approved",
+      everApprovedCharter: true
+    });
+    showAdminToast("تم اعتماد توقيع الميثاق للصحفي ✓");
+    openAuthorDossierModal(member.id);
+  });
+
+  document.getElementById("dossier-reject-sig-btn")?.addEventListener("click", async () => {
+    await updateDoc(doc(db, "staff", member.id), { signatureStatus: "rejected" });
+    showAdminToast("تم إرسال طلب تحديث التوقيع للصحفي");
+    openAuthorDossierModal(member.id);
+  });
+}
+
+// ==================== 13. إعدادات المنصة وتحديث إصدار ميثاق الشرف الصحفي ====================
+function populateSettingsForm() {
+  const s = state.settings;
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setVal("set-site-name", s.siteName || "حُجرية بريس");
+  setVal("set-logo-url", s.logoUrl || "");
+  setVal("set-site-desc", s.siteDescription || "");
+  setVal("set-charter-html", s.charterHtml || DEFAULT_CHARTER_HTML);
+
+  const verLabel = document.getElementById("current-charter-ver-label");
+  if (verLabel) verLabel.textContent = String(s.charterVersion || 1);
+}
+
+async function handleSavePlatformSettings(e) {
+  e.preventDefault();
+  if (!isUserAdmin(state.currentUser)) return;
+
+  const siteName = (document.getElementById("set-site-name")?.value || "").trim() || "حُجرية بريس";
+  const logoUrl = (document.getElementById("set-logo-url")?.value || "").trim();
+  const siteDescription = (document.getElementById("set-site-desc")?.value || "").trim();
+  const charterHtml = (document.getElementById("set-charter-html")?.value || "").trim() || DEFAULT_CHARTER_HTML;
+  const bumpVersion = Boolean(document.getElementById("bump-charter-version-chk")?.checked);
+
+  const nextVersion = bumpVersion
+    ? Number(state.settings.charterVersion || 1) + 1
+    : Number(state.settings.charterVersion || 1);
+
+  const payload = {
+    siteName,
+    logoUrl,
+    siteDescription,
+    charterHtml,
+    charterVersion: nextVersion,
+    updatedAt: Date.now()
+  };
+
+  try {
+    await setDoc(doc(db, "settings", "general"), payload, { merge: true });
+    const chk = document.getElementById("bump-charter-version-chk");
+    if (chk) chk.checked = false;
+    showAdminToast(
+      bumpVersion
+        ? `تم حفظ الميثاق وترقية الإصدار إلى (${nextVersion}) وإشعار جميع الصحفيين للتوقيع ✓`
+        : "تم حفظ إعدادات المنصة وميثاق الشرف بنجاح ✓"
+    );
+  } catch (err) {
+    console.error(err);
+    showAdminToast("حدث خطأ أثناء حفظ الإعدادات");
+  }
+}
+
+// ==================== 14. إدارة التنقل وربط الأحداث والمزامنة الحية ====================
+function switchNewsroomView(targetViewId) {
+  state.activeView = targetViewId;
+
+  document.querySelectorAll(".nr-view").forEach((sec) => {
+    sec.classList.toggle("hidden", sec.id !== targetViewId);
+  });
+
+  document.querySelectorAll("#main-admin-nav .nav-btn[data-target-view]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-target-view") === targetViewId);
+  });
+
+  if (targetViewId === "view-write-studio") {
+    populateStudioCategoriesSelect();
+  } else if (targetViewId === "view-profile") {
+    populateMyProfileView();
+  } else if (targetViewId === "view-reviews" || targetViewId === "view-staff") {
+    renderAdminReviewsAndStaff();
+  } else if (targetViewId === "view-settings") {
+    populateSettingsForm();
+  } else {
+    renderDashboardAndMyArticles();
+  }
+}
+
+function bindAllNewsroomEvents() {
+  // 1. أزرار التنقل العلوية/السفلية
+  document.querySelectorAll("#main-admin-nav .nav-btn[data-target-view]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchNewsroomView(btn.getAttribute("data-target-view"));
+    });
+  });
+
+  document.getElementById("nr-logout-btn")?.addEventListener("click", handleLogout);
+
+  // 2. تبويبات ونماذج تسجيل الدخول
+  const tabStd = document.getElementById("tab-auth-standard");
+  const tabPin = document.getElementById("tab-auth-pin");
+  const formStd = document.getElementById("nr-standard-login-form");
+  const formPin = document.getElementById("nr-pin-login-form");
+
+  tabStd?.addEventListener("click", () => {
+    tabStd.classList.add("active");
+    tabPin?.classList.remove("active");
+    formStd?.classList.remove("hidden");
+    formPin?.classList.add("hidden");
+  });
+
+  tabPin?.addEventListener("click", () => {
+    tabPin.classList.add("active");
+    tabStd?.classList.remove("active");
+    formPin?.classList.remove("hidden");
+    formStd?.classList.add("hidden");
+    document.getElementById("login-pin-input")?.focus();
+  });
+
+  formStd?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const idVal = document.getElementById("login-identifier")?.value || "";
+    const passVal = document.getElementById("login-password")?.value || "";
+    const user = authenticateCredentials(idVal, passVal);
+    if (!user) {
+      showAdminToast("بيانات الدخول غير صحيحة. تأكد من الهوية الصحفية (HP) أو اسم المستخدم وكلمة المرور.");
+      return;
+    }
+    setLoggedInUser(user);
+    showAdminToast(`مرحباً بك في غرفة الأخبار: ${user.name}`);
+  });
+
+  formPin?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const pinVal = document.getElementById("login-pin-input")?.value || "";
+    const user = authenticateByPin(pinVal);
+    if (!user) {
+      showAdminToast("رمز الدخول السريع (PIN) غير صحيح");
+      return;
+    }
+    setLoggedInUser(user);
+    showAdminToast(`مرحباً بك: ${user.name}`);
+  });
+
+  // 3. أزرار مراحل استديو صياغة الأخبار (Multi-Step Wizard)
+  document.querySelectorAll(".btn-next-step").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const nextStep = Number(btn.getAttribute("data-next") || state.studioStep + 1);
+      goToStudioStep(nextStep);
+    });
+  });
+
+  document.querySelectorAll(".btn-prev-step").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const prevStep = Number(btn.getAttribute("data-prev") || state.studioStep - 1);
+      goToStudioStep(prevStep);
+    });
+  });
+
+  // الحفظ التلقائي الفوري عند الكتابة في أي حقل داخل الاستديو
+  [
+    "post-title",
+    "post-summary",
+    "post-tags",
+    "post-image-url-input",
+    "post-video-url",
+    "post-video-type"
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", () => {
+      if (id === "post-image-url-input") {
+        renderStudioMainImagePreview(document.getElementById(id).value.trim());
+      }
+      triggerStudioAutoSave();
+    });
+  });
+
+  document.getElementById("rich-text-editor")?.addEventListener("input", triggerStudioAutoSave);
+
+  // رفع وضغط الصورة البارزة للخبر
+  document.getElementById("post-main-image")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      showAdminToast("جاري ضغط وتجهيز الصورة البارزة...");
+      const compressed = await compressImageFileToDataUrl(file, 1150, 0.8);
+      state.studioMainImageData = compressed;
+      renderStudioMainImagePreview(compressed);
+      triggerStudioAutoSave();
+      showAdminToast("تم تجهيز الصورة البارزة بنجاح ✓");
+    } catch (_) {
+      showAdminToast("تعذر قراءة ملف الصورة");
+    }
+  });
+
+  // شريط أدوات محرر النصوص الواسع + إدراج الصور المتعددة بين الفقرات
+  document.querySelectorAll(".editor-toolbar .toolbar-btn[data-command]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cmd = btn.getAttribute("data-command");
+      const val = btn.getAttribute("data-value") || null;
+      document.execCommand(cmd, false, val);
+      document.getElementById("rich-text-editor")?.focus();
+      triggerStudioAutoSave();
+    });
+  });
+
+  const inlineImgInput = document.createElement("input");
+  inlineImgInput.type = "file";
+  inlineImgInput.accept = "image/*";
+  inlineImgInput.className = "hidden";
+  document.body.appendChild(inlineImgInput);
+
+  document.getElementById("insert-inline-img-btn")?.addEventListener("click", () => {
+    inlineImgInput.click();
+  });
+
+  inlineImgInput.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      showAdminToast("جاري ضغط وإدراج الصورة داخل المقال...");
+      const dataUrl = await compressImageFileToDataUrl(file, 1000, 0.78);
+      const caption = prompt("اكتب وصفاً توضيحياً للصورة (اختياري):") || "";
+      const figureHtml = `
+        <figure class="inline-article-figure">
+          <img src="${dataUrl}" alt="${escapeHtml(caption)}">
+          ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
+        </figure><p><br></p>
+      `;
+      const editor = document.getElementById("rich-text-editor");
+      if (editor) {
+        editor.focus();
+        document.execCommand("insertHTML", false, figureHtml);
+        triggerStudioAutoSave();
+      }
+      inlineImgInput.value = "";
+    } catch (_) {
+      showAdminToast("تعذر إدراج الصورة");
+    }
+  });
+
+  document.getElementById("insert-link-btn")?.addEventListener("click", () => {
+    const url = prompt("أدخل الرابط الكامل (https://...):", "https://");
+    if (url && url !== "https://") {
+      document.execCommand("createLink", false, url.trim());
+      triggerStudioAutoSave();
+    }
+  });
+
+  // أزرار الحفظ كمسودة والنشر
+  document.getElementById("save-draft-btn")?.addEventListener("click", () => {
+    handleSaveOrPublishArticle(true);
+  });
+
+  document.getElementById("publish-article-btn")?.addEventListener("click", () => {
+    handleSaveOrPublishArticle(false);
+  });
+
+  // 4. تبويبات صفحة المراجعات للأدمن
+  document.querySelectorAll(".admin-tab-btn[data-tab-target]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-tab-target");
+      document.querySelectorAll(".admin-tab-btn").forEach((b) =>
+        b.classList.toggle("active", b === btn)
+      );
+      document.querySelectorAll(".admin-tab-content").forEach((pane) =>
+        pane.classList.toggle("hidden", pane.id !== targetId)
+      );
+    });
+  });
+
+  // 5. البحث الفوري الذكي في سجل الكادر بالهوية الصحفية (HP) أو الاسم
+  document.getElementById("staff-search-input")?.addEventListener("input", () => {
+    renderStaffDirectoryGrid();
+  });
+
+  // 6. نافذة إضافة صحفي جديد وتوليد هوية صحفية (HP#####)
+  document.getElementById("open-add-staff-modal-btn")?.addEventListener("click", () => {
+    document.getElementById("add-staff-overlay")?.classList.remove("hidden");
+  });
+
+  document.getElementById("close-add-staff-btn")?.addEventListener("click", () => {
+    document.getElementById("add-staff-overlay")?.classList.add("hidden");
+  });
+
+  document.getElementById("add-staff-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!isUserAdmin(state.currentUser)) return;
+
+    const name = (document.getElementById("new-staff-name")?.value || "").trim();
+    const jobTitle = (document.getElementById("new-staff-job")?.value || "").trim() || "محرر صحفي";
+    const username = (document.getElementById("new-staff-username")?.value || "").trim();
+    const password = (document.getElementById("new-staff-password")?.value || "").trim();
+    const pinCode = (document.getElementById("new-staff-pin")?.value || "").trim();
+    const role = document.getElementById("new-staff-role")?.value || "writer";
+
+    if (!name || !username || !password) return;
+
+    const newPressId = generateUniquePressId(state.staff);
+    const newStaffPayload = {
+      pressId: newPressId,
+      name,
+      jobTitle,
+      username,
+      password,
+      pinCode,
+      role,
+      directPublish: role === "trusted_writer" || role === "admin",
+      verified: role === "admin",
+      signatureStatus: "none",
+      signedCharterVersion: 0,
+      createdAt: Date.now()
+    };
+
+    try {
+      await addDoc(collection(db, "staff"), newStaffPayload);
+      document.getElementById("add-staff-form")?.reset();
+      document.getElementById("add-staff-overlay")?.classList.add("hidden");
+      showAdminToast(`تم إنشاء حساب الصحفي وتخصيص الهوية الصحفية: ${newPressId} ✓`);
+    } catch (_) {
+      showAdminToast("تعذر إنشاء الحساب");
+    }
+  });
+
+  // 7. إغلاق نافذة الملف الشخصي الشامل (Dossier)
+  document.getElementById("close-dossier-modal-btn")?.addEventListener("click", () => {
+    document.getElementById("author-dossier-overlay")?.classList.add("hidden");
+  });
+
+  // 8. أحداث نموذج التوثيق (KYC) وحساب العمر الفوري
+  document.getElementById("kyc-dob")?.addEventListener("change", (e) => {
+    updateLiveCalculatedAgeDisplay(e.target.value);
+  });
+
+  document.getElementById("kyc-form")?.addEventListener("submit", handleKycFormSubmission);
+
+  // 9. حفظ إعدادات المنصة وميثاق الشرف
+  document
+    .getElementById("platform-settings-form")
+    ?.addEventListener("submit", handleSavePlatformSettings);
+}
+
+// ==================== 15. المزامنة الخلفية مع Firestore وتشغيل غرفة الأخبار ====================
+function restoreSavedSessionIfAvailable() {
+  try {
+    const raw = localStorage.getItem(NR_SESSION_KEY);
+    if (!raw) {
+      document.getElementById("nr-login-gate")?.classList.remove("hidden");
+      return;
+    }
+    const saved = JSON.parse(raw);
+    if (saved?.id === "master-admin" || saved?.pressId === "HP10001") {
+      setLoggedInUser({ ...MASTER_ADMIN_FALLBACK });
+      return;
+    }
+    const found = state.staff.find(
+      (s) => s.id === saved?.id || normalizePressId(s.pressId) === normalizePressId(saved?.pressId)
+    );
+    if (found) {
+      setLoggedInUser(found);
+    } else {
+      document.getElementById("nr-login-gate")?.classList.remove("hidden");
+    }
+  } catch (_) {
+    document.getElementById("nr-login-gate")?.classList.remove("hidden");
+  }
+}
+
+function startNewsroomFirestoreSync() {
+  onSnapshot(doc(db, "settings", "general"), (snap) => {
+    if (snap.exists()) {
+      state.settings = { ...state.settings, ...snap.data() };
+      saveNewsroomCache();
+      evaluateCharterPledgeRequirement();
+      if (state.activeView === "view-settings") populateSettingsForm();
+    }
+  });
+
+  onSnapshot(collection(db, "categories"), (snap) => {
+    if (!snap.empty) {
+      state.compasses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      populateStudioCategoriesSelect();
+      saveNewsroomCache();
+    }
+  });
+
+  onSnapshot(collection(db, "staff"), async (snap) => {
+    state.staff = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    await ensureAllStaffHavePressIds();
+    saveNewsroomCache();
+
+    if (state.currentUser && state.currentUser.id !== "master-admin") {
+      const updatedMe = state.staff.find((s) => s.id === state.currentUser.id);
+      if (updatedMe) {
+        state.currentUser = { ...state.currentUser, ...updatedMe };
+        evaluateCharterPledgeRequirement();
+      }
+    } else if (!state.currentUser) {
+      restoreSavedSessionIfAvailable();
+    }
+
+    if (isUserAdmin(state.currentUser)) {
+      renderAdminReviewsAndStaff();
+    }
+  });
+
+  onSnapshot(collection(db, "posts"), (snap) => {
+    state.posts = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => getTimestampMs(b) - getTimestampMs(a));
+
+    saveNewsroomCache();
+    renderDashboardAndMyArticles();
+    if (isUserAdmin(state.currentUser)) {
+      renderAdminReviewsAndStaff();
+    }
+  });
+}
+
+// نقطة الانطلاق الفورية لغرفة الأخبار (0ms Startup)
+document.addEventListener("DOMContentLoaded", () => {
+  injectEnhancedNewsroomShell();
+  restoreNewsroomCache();
+  populateStudioCategoriesSelect();
+  initSignatureCanvasPad();
+  bindAllNewsroomEvents();
+  restoreStudioAutoSavedDraft();
+  restoreSavedSessionIfAvailable();
+  startNewsroomFirestoreSync();
+});
