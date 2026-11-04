@@ -1,11 +1,10 @@
 /* ==========================================================================
    حُجرية بريس (Hujariya Press) — المحرك البرمجي الشامل لغرفة الأخبار (admin-app.js)
-   - سرعة استجابة فورية (0ms Local Cache) للعمل بكفاءة تحت الإنترنت الضعيف
-   - الهوية الصحفية الثابتة (HP##### بدون شرطة) لتسجيل الدخول والبحث الفوري
-   - التوقيع الرقمي الثلاثي لميثاق الشرف للجدد + تحديث غير معطل للعمل للمعتمدين
-   - الملف الشخصي الشامل (Dossier) + حساب العمر التلقائي + واتساب وبريد مباشر + تحقق KYC
-   - استديو النشر المرحلي (Multi-Step Studio) مع حفظ تلقائي للمرحلة والمحتوى وإدراج صور متعددة
-   - التزام صارم بالهوية القرمزية (#b80d38) وأيقونات Google Material Symbols الرسمية فقط
+   [الجزء الأول من 2]:
+   - التهيئة السحابية (Firebase Firestore) + التخزين المؤقت السريع للإنترنت الضعيف
+   - نظام الهوية الصحفية الثابتة (HP#####) + الحساب التلقائي للعمر من تاريخ الميلاد
+   - بوابة الدخول الذكية (باسم المستخدم، البريد، الهوية الصحفية HP، أو رمز PIN السريع)
+   - محرك ميثاق الشرف الصحفي والتوقيع الرقمي الحي (3 توقيعات لأول مرة / توقيع واحد غير معطل للتحديثات)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -13,6 +12,7 @@ import {
   getFirestore,
   collection,
   doc,
+  getDoc,
   setDoc,
   addDoc,
   updateDoc,
@@ -36,55 +36,139 @@ const FIREBASE_CONFIG = {
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
 
-const NEWSROOM_CACHE_KEY = "hujariya_newsroom_fast_cache_v5";
-constSESSION_USER_KEY = "hujariya_newsroom_session_v5";
-const STUDIO_AUTOSAVE_KEY = "hujariya_studio_autosave_v5";
+// مفاتيح التخزين المحلي السريع (لتسريع غرفة الأخبار وحفظ المسودات)
+const NR_SESSION_KEY = "hujariya_nr_session_v4";
+const NR_CACHE_KEY = "hujariya_nr_fast_cache_v4";
+const NR_AUTOSAVE_KEY = "hujariya_nr_studio_autosave_v4";
+const DEFAULT_CRIMSON = "#b80d38";
 
-const DEFAULT_CATEGORIES = [
-  { id: "yemen-politics", name: "السياسة اليمنية", subcategories: ["الشرعية ومؤسسات الدولة", "التحليلات الاستراتيجية", "الشأن المحلي والمحافظات", "كشف زيف الميليشيات"] },
-  { id: "saudi-politics", name: "السياسة السعودية", subcategories: ["الأمن القومي المشترك", "الدبلوماسية الإقليمية", "رؤية المملكة 2030", "المشاريع التنموية"] },
-  { id: "regional-international", name: "إقليمي ودولي", subcategories: ["الشرق الأوسط", "السياسة الدولية", "أمن البحر الأحمر والممرات"] },
-  { id: "economy-dev", name: "اقتصاد وأسواق", subcategories: ["أسواق وعملات", "طاقة ونفط", "إعمار وتنمية", "بورصات عالمية"] },
-  { id: "sports", name: "الرياضة", subcategories: ["الكرة اليمنية", "الدوري السعودي", "الكرة العالمية", "بطولات دولية"] },
-  { id: "health-science", name: "صحة وعلوم وفضاء", subcategories: ["طب وصحة", "أبحاث الفضاء والفلك", "اكتشافات علمية", "بيئة ومناخ"] },
-  { id: "tech-future", name: "تقنية ومستقبل", subcategories: ["الذكاء الاصطناعي", "الأمن السيبراني", "تطبيقات ومنصات", "ابتكارات"] },
-  { id: "culture-thought", name: "ثقافة وفكر", subcategories: ["أدب وفكر", "تاريخ وهوية", "قراءات وكتب", "مقالات الرأي"] },
-  { id: "art-media", name: "فن وإعلام", subcategories: ["فن ودراما", "إعلام رقمي", "تراث وفنون"] }
+// الأقسام الافتراضية المعتمدة للمنصة
+const DEFAULT_COMPASSES = [
+  {
+    id: "yemen-politics",
+    name: "السياسة اليمنية",
+    subcategories: ["الشرعية ومؤسسات الدولة", "التحليلات الاستراتيجية", "الشأن المحلي والمحافظات", "كشف زيف الميليشيات"],
+    visible: true,
+    order: 1
+  },
+  {
+    id: "saudi-politics",
+    name: "السياسة السعودية",
+    subcategories: ["الأمن القومي المشترك", "الدبلوماسية الإقليمية", "رؤية المملكة 2030", "المشاريع التنموية"],
+    visible: true,
+    order: 2
+  },
+  {
+    id: "regional-international",
+    name: "إقليمي ودولي",
+    subcategories: ["الشرق الأوسط", "السياسة الدولية", "أمن البحر الأحمر والممرات"],
+    visible: true,
+    order: 3
+  },
+  {
+    id: "economy-dev",
+    name: "اقتصاد وأسواق",
+    subcategories: ["أسواق وعملات", "طاقة ونفط", "إعمار وتنمية", "بورصات عالمية"],
+    visible: true,
+    order: 4
+  },
+  {
+    id: "sports",
+    name: "الرياضة",
+    subcategories: ["الكرة اليمنية", "الدوري السعودي", "الكرة العالمية", "بطولات دولية"],
+    visible: true,
+    order: 5
+  },
+  {
+    id: "health-science",
+    name: "صحة وعلوم وفضاء",
+    subcategories: ["طب وصحة", "أبحاث الفضاء والفلك", "اكتشافات علمية", "بيئة ومناخ"],
+    visible: true,
+    order: 6
+  },
+  {
+    id: "tech-future",
+    name: "تقنية ومستقبل",
+    subcategories: ["الذكاء الاصطناعي", "الأمن السيبراني", "تطبيقات ومنصات", "ابتكارات"],
+    visible: true,
+    order: 7
+  },
+  {
+    id: "culture-thought",
+    name: "ثقافة وفكر",
+    subcategories: ["أدب وفكر", "تاريخ وهوية", "قراءات وكتب", "مقالات الرأي"],
+    visible: true,
+    order: 8
+  },
+  {
+    id: "art-media",
+    name: "فن وإعلام",
+    subcategories: ["فن ودراما", "إعلام رقمي", "تراث وفنون"],
+    visible: true,
+    order: 9
+  }
 ];
 
+// النص الافتراضي لميثاق الشرف الصحفي (قابل للتعديل في أي وقت من إعدادات الأدمن)
 const DEFAULT_CHARTER_HTML = `
-  <h3>ميثاق الشرف الصحفي والتحريري — حُجرية بريس</h3>
-  <p>بصفتي صحفياً وكاتباً في منصة <strong>حُجرية بريس (Hujariya Press)</strong>، أقر وأتعهد بالالتزام الكامل بالمعايير المهنية والوطنية التالية:</p>
-  <ol>
-    <li><strong>المصداقية والتحقق:</strong> تحري الدقة التامة والتثبت من صحة الأخبار والمصادر قبل النشر والابتعاد عن الشائعات.</li>
-    <li><strong>الثوابت الوطنية:</strong> احترام السيادة الوطنية ومؤسسات الدولة الشرعية والأمن القومي العربي والمشترك.</li>
-    <li><strong>الأمانة المهنية:</strong> عدم انتحال المقالات أو المواد الإعلامية وحفظ الحقوق الفكرية لأصحابها.</li>
-    <li><strong>المسؤولية القانونية:</strong> تحمّل المسؤولية المهنية والقانونية الكاملة عن المواد التي أقوم بصياغتها ونشرها عبر حسابي الرسمي.</li>
-  </ol>
+  <h3>أولاً: الالتزام المهني والأخلاقي</h3>
+  <p>يلتزم الصحفي والكاتب في منصة <strong>حُجرية بريس (Hujariya Press)</strong> بتحري الدقة والمصداقية التامة، والتأكد من صحة الأخبار والمعلومات من مصادرها الموثوقة قبل صياغتها أو نشرها.</p>
+  <h3>ثانياً: الثوابت الوطنية والمسؤولية القانونية</h3>
+  <p>يلتزم العضو باحترام الثوابت الوطنية، والامتناع التام عن نشر الشائعات أو المواد المحرضة أو المنتهكة لحقوق الملكية الفكرية، ويتحمل المسؤولية القانونية والأدبية الكاملة عن صحة البيانات والوثائق المرفقة في ملف هويته الصحفية.</p>
+  <h3>ثالثاً: سرية غرفة الأخبار</h3>
+  <p>تُعد بيانات الدخول والهوية الصحفية (HP) عهدة شخصية لا يجوز مشاركتها مع أي طرف خارجي، ويُعد التوقيع الرقمي أدناه إقراراً رسمياً ملزماً بجميع بنود هذا الميثاق وتحديثاته.</p>
 `;
 
-// ==================== 2. حالة غرفة الأخبار (Newsroom State) ====================
-const nrState = {
+// حساب المدير العام الافتراضي (لضمان الدخول دائماً حتى قبل تهيئة الكادر)
+const MASTER_ADMIN_FALLBACK = {
+  id: "master-admin",
+  pressId: "HP10001",
+  name: "رئيس التحرير — الإدارة العامة",
+  username: "admin",
+  email: "admin@hujariyapress.rawi-ye.com",
+  password: "admin",
+  pinCode: "0000",
+  jobTitle: "رئيس التحرير والمدير العام",
+  role: "admin",
+  isMasterAdmin: true,
+  verified: true,
+  directPublish: true,
+  signatureStatus: "approved",
+  signedCharterVersion: 1
+};
+
+// ==================== 2. الحالة العامة لغرفة الأخبار (State) ====================
+const state = {
   currentUser: null,
   settings: {
     siteName: "حُجرية بريس",
+    siteDescription: "منصة إخبارية وتحليلية شاملة تندرج تحت مظلة مؤسسة RAWI-YE.COM الإعلامية الرقمية.",
+    accentColor: DEFAULT_CRIMSON,
+    logoUrl: "",
+    defaultPostImageUrl: "",
     charterHtml: DEFAULT_CHARTER_HTML,
     charterVersion: 1,
-    unifiedTags: ["اليمن", "السعودية", "تعز", "الحجرية", "عدن", "صنعاء", "الرياض", "عاجل", "تحليل_سياسي", "اقتصاد"]
+    masterUsername: "admin",
+    masterPassword: "admin",
+    masterPin: "0000"
   },
-  categories: [...DEFAULT_CATEGORIES],
-  staff: [],
+  compasses: structuredClone(DEFAULT_COMPASSES),
   posts: [],
-  currentStep: 1,
+  staff: [],
+  activeView: "view-dashboard",
+  studioStep: 1,
   editingPostId: null,
-  mainImageDataUrl: "",
-  capturedSignatures: [],
-  requiredSignatureCount: 3,
-  isUpdateCharterMode: false,
+  studioMainImageData: "",
+  // حالة التوقيع على الميثاق (3 مرات لأول مرة، أو مرة واحدة للتحديث)
+  pledgeMode: "first_time", // "first_time" | "update"
+  pledgeRequiredCount: 3,
+  pledgeCollectedSignatures: [],
+  isDrawingSignature: false,
+  hasStrokeOnCurrentCanvas: false,
   selectedDossierStaffId: null
 };
 
-// ==================== 3. دوال مساعدة (الأمان، الهوية الصحفية، حساب العمر، وضغط الصور) ====================
+// ==================== 3. الدوال المساعدة وحساب العمر والهوية الصحفية ====================
 function escapeHtml(str = "") {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -93,50 +177,27 @@ function escapeHtml(str = "") {
     .replace(/"/g, "&quot;");
 }
 
+function stripHtml(html = "") {
+  return String(html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function showAdminToast(message) {
   const toast = document.getElementById("admin-toast");
   if (!toast) return;
   toast.textContent = message;
   toast.classList.remove("hidden");
   clearTimeout(window.__nrToastTimer);
-  window.__nrToastTimer = setTimeout(() => toast.classList.add("hidden"), 3200);
+  window.__nrToastTimer = setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 3400);
 }
 
-// توليد هوية صحفية فريدة بصيغة HP متبوعة بـ 5 أرقام بدون شرطة (مثال: HP10482)
-function generateUniquePressId(existingStaff = []) {
-  const usedIds = new Set(
-    existingStaff.map((s) => String(s.pressId || "").toUpperCase().replace(/[^A-Z0-9]/g, ""))
-  );
-  for (let i = 0; i < 500; i++) {
-    const fiveDigits = Math.floor(10000 + Math.random() * 90000);
-    const candidate = `HP${fiveDigits}`;
-    if (!usedIds.has(candidate)) return candidate;
-  }
-  return `HP${String(Date.now()).slice(-5)}`;
-}
-
-function normalizePressId(raw = "") {
-  const clean = String(raw || "").trim().toUpperCase().replace(/[\s-]+/g, "");
-  if (/^HP\d{5}$/.test(clean)) return clean;
-  return "";
-}
-
-// حساب العمر التلقائي الدقيق بالسنوات من تاريخ الميلاد
-function calculateExactAgeFromDob(dobString = "") {
-  if (!dobString) return null;
-  const dob = new Date(dobString);
-  if (isNaN(dob.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age >= 0 && age < 120 ? age : null;
-}
-
-function getTimestampMs(item) {
-  const t = item?.createdAt || item?.updatedAt || item?.signedAt;
+function getTimestampMs(docObj) {
+  if (!docObj) return 0;
+  const t = docObj.createdAt || docObj.updatedAt || docObj.signedAt || docObj.kycSubmittedAt;
   if (!t) return 0;
   if (typeof t.toMillis === "function") return t.toMillis();
   if (typeof t.seconds === "number") return t.seconds * 1000;
@@ -144,8 +205,8 @@ function getTimestampMs(item) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-function formatArabicDateTime(itemOrMs) {
-  const ms = typeof itemOrMs === "number" ? itemOrMs : getTimestampMs(itemOrMs);
+function formatArabicDateTime(msOrObj) {
+  const ms = typeof msOrObj === "number" ? msOrObj : getTimestampMs(msOrObj);
   if (!ms) return "منذ قليل";
   return new Date(ms).toLocaleDateString("ar-YE", {
     year: "numeric",
@@ -156,633 +217,638 @@ function formatArabicDateTime(itemOrMs) {
   });
 }
 
-// ضغط الصور برمجياً لتعمل غرفة الأخبار بسرعة فائقة حتى مع الإنترنت الضعيف
-function compressImageFileToDataUrl(file, maxWidth = 1080, quality = 0.78) {
-  return new Promise((resolve, reject) => {
-    if (!file) return resolve("");
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => {
-        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      img.onerror = reject;
-      img.src = ev.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// حساب العمر تلقائياً وبدقة من تاريخ الميلاد (يتحدث تلقائياً مع الزمن)
+function calculateAgeFromDob(dobString) {
+  if (!dobString) return null;
+  const birthDate = new Date(dobString);
+  if (isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 && age < 120 ? age : null;
 }
 
-function isUserMasterOrAdmin(user) {
+// توليد هوية صحفية ثابتة ومميزة بصيغة HP متبوعة بـ 5 أرقام بدون شرطة (مثال: HP10042)
+function generateUniquePressId(existingStaffList = []) {
+  const usedIds = new Set(
+    existingStaffList
+      .map((s) => String(s.pressId || "").toUpperCase().replace(/[^A-Z0-9]/g, ""))
+      .filter(Boolean)
+  );
+  usedIds.add("HP10001");
+
+  // نبدأ من أرقام مميزة ومتسلسلة أو عشوائية منظمة من 5 خانات
+  let baseNum = 10010 + existingStaffList.length * 7;
+  while (usedIds.has(`HP${baseNum}`)) {
+    baseNum += Math.floor(Math.random() * 9) + 1;
+  }
+  return `HP${String(baseNum).slice(0, 5).padStart(5, "1")}`;
+}
+
+function normalizePressId(raw = "") {
+  const cleaned = String(raw || "")
+    .toUpperCase()
+    .replace(/[\s\-_]/g, "");
+  return cleaned;
+}
+
+function isUserAdmin(user) {
   if (!user) return false;
   return Boolean(user.isMasterAdmin || user.role === "admin" || user.role === "editor_in_chief");
 }
 
-function canUserPublishDirectly(user) {
-  if (!user) return false;
-  return Boolean(isUserMasterOrAdmin(user) || user.canPublishDirectly || user.directPublish);
+// ضغط الصور في المتصفح لتحويلها إلى WebP خفيف وسريع جداً يناسب الإنترنت الضعيف
+function compressImageFileToDataUrl(file, maxWidth = 1100, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve("");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / (img.width || maxWidth));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round((img.width || maxWidth) * scale);
+        canvas.height = Math.round((img.height || maxWidth) * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const webpData = canvas.toDataURL("image/webp", quality);
+        resolve(webpData);
+      };
+      img.onerror = () => reject(new Error("تعذر قراءة الصورة"));
+      img.src = ev.target.result;
+    };
+    reader.onerror = () => reject(new Error("فشل تحميل الملف"));
+    reader.readAsDataURL(file);
+  });
 }
 
-// ==================== 4. التخزين المحلي الفوري (0ms Local Cache) ====================
+// ==================== 4. التخزين المؤقت السريع لغرفة الأخبار (Fast Local Cache) ====================
 function saveNewsroomCache() {
   try {
-    localStorage.setItem(
-      NEWSROOM_CACHE_KEY,
-      JSON.stringify({
-        savedAt: Date.now(),
-        settings: nrState.settings,
-        categories: nrState.categories,
-        staff: nrState.staff,
-        posts: nrState.posts.slice(0, 100)
-      })
-    );
+    const payload = {
+      savedAt: Date.now(),
+      settings: state.settings,
+      compasses: state.compasses,
+      posts: state.posts.slice(0, 80),
+      staff: state.staff
+    };
+    localStorage.setItem(NR_CACHE_KEY, JSON.stringify(payload));
   } catch (_) {}
 }
 
 function restoreNewsroomCache() {
   try {
-    const raw = localStorage.getItem(NEWSROOM_CACHE_KEY);
-    if (!raw) return;
+    const raw = localStorage.getItem(NR_CACHE_KEY);
+    if (!raw) return false;
     const parsed = JSON.parse(raw);
-    if (parsed?.settings) nrState.settings = { ...nrState.settings, ...parsed.settings };
-    if (Array.isArray(parsed?.categories) && parsed.categories.length) {
-      nrState.categories = parsed.categories;
+    if (!parsed) return false;
+
+    if (parsed.settings) state.settings = { ...state.settings, ...parsed.settings };
+    if (Array.isArray(parsed.compasses) && parsed.compasses.length) {
+      state.compasses = parsed.compasses;
     }
-    if (Array.isArray(parsed?.staff)) nrState.staff = parsed.staff;
-    if (Array.isArray(parsed?.posts)) nrState.posts = parsed.posts;
-  } catch (_) {}
+    if (Array.isArray(parsed.posts)) state.posts = parsed.posts;
+    if (Array.isArray(parsed.staff)) state.staff = parsed.staff;
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
-// ==================== 5. حقن العناصر التكميلية وتطهير الواجهة من أي إيموجي ====================
-function enhanceNewsroomDomAndStyles() {
-  // حقن تنسيقات إضافية دقيقة للواجهة، شاشة الدخول، التوقيعات الثلاثة، والملف الشخصي الشامل (Dossier)
+// ==================== 5. حقن الواجهات المكملة (بوابة الدخول، الدوسيه، الإعدادات، والحقول الإضافية) ====================
+function injectEnhancedNewsroomShell() {
+  // 1. حقن تنسيقات إضافية دقيقة للعناصر المكملة بنفس الهوية القرمزية وأسلوب الجزيرة
   const extraStyle = document.createElement("style");
   extraStyle.textContent = `
-    .nr-icon-inline { vertical-align: middle; font-size: 19px; color: var(--brand-red); margin-left: 4px; }
-    .nr-card-surface { background: #fff; border: 1px solid var(--border-light); border-radius: 8px; padding: 18px; margin-bottom: 16px; box-shadow: 0 3px 12px rgba(184,13,56,0.05); }
-    .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
-    .quick-stats-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; background: #fff; border: 1px solid var(--border-light); border-right: 4px solid var(--brand-red); border-radius: 8px; padding: 16px; }
-    .stat-item { background: #f8f9fb; padding: 12px; border-radius: 6px; border: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 4px; }
-    .stat-label { font-size: 0.8rem; color: #636770; font-weight: 700; }
-    .stat-value { font-size: 1.45rem; font-weight: 900; color: var(--brand-red); }
-    .articles-list { display: flex; flex-direction: column; gap: 10px; }
-    .nr-post-row { background: #fff; border: 1px solid var(--border-light); border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .nr-post-row:hover { border-color: rgba(184,13,56,0.35); }
-    .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 0.74rem; font-weight: 800; }
-    .st-pub { background: #dcfce7; color: #15803d; }
-    .st-pend { background: #fef3c7; color: #b45309; }
-    .st-draft { background: #f1f5f9; color: #475569; }
-    .char-counter-badge { float: left; font-size: 0.75rem; font-weight: 800; color: var(--brand-red); background: rgba(184,13,56,0.08); padding: 2px 8px; border-radius: 99px; }
-    .sig-slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
-    .sig-slot-box { border: 1.5px dashed var(--border-light); border-radius: 6px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fafafa; overflow: hidden; position: relative; font-size: 0.72rem; color: #666; font-weight: 700; }
-    .sig-slot-box.filled { border-style: solid; border-color: #16a34a; background: #f0fdf4; }
-    .sig-slot-box img { max-height: 56px; object-fit: contain; }
-    .charter-update-banner { background: #fff8f1; border: 1px solid #fdba74; border-right: 4px solid var(--brand-red); padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; font-weight: 700; }
-    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; margin-top: 14px; }
-    .staff-card { background: #fff; border: 1px solid var(--border-light); border-right: 4px solid var(--brand-red); border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; gap: 10px; }
-    .staff-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(184,13,56,0.12); }
-    .staff-card-top { display: flex; align-items: center; gap: 11px; }
-    .staff-card-top img, .profile-avatar { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 2px solid var(--brand-red); }
-    .age-live-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(184,13,56,0.09); color: var(--brand-red); padding: 3px 9px; border-radius: 99px; font-size: 0.76rem; font-weight: 800; }
-    .contact-action-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; text-decoration: none; border: 1px solid var(--border-light); background: #fff; color: var(--text-main); }
-    .contact-action-btn.wa-btn { background: #16a34a; color: #fff; border-color: #16a34a; }
-    .contact-action-btn.mail-btn { background: var(--brand-red); color: #fff; border-color: var(--brand-red); }
-    .tabs-header { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
-    .tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--border-light); background: #fff; font-weight: 800; cursor: pointer; }
-    .tab-btn.active { background: var(--brand-red); color: #fff; border-color: var(--brand-red); }
-    .nr-login-overlay { position: fixed; inset: 0; background: #f4f6f8; z-index: 9500; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .nr-login-card { background: #fff; width: 100%; max-width: 430px; border-radius: 10px; border-top: 5px solid var(--brand-red); padding: 28px 24px; box-shadow: 0 12px 36px rgba(184,13,56,0.14); }
-    .dossier-modal-overlay { position: fixed; inset: 0; background: rgba(12,13,14,0.68); backdrop-filter: blur(4px); z-index: 9200; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .dossier-modal-sheet { background: #fff; width: 100%; max-width: 860px; max-height: 90vh; overflow-y: auto; border-radius: 10px; border-top: 5px solid var(--brand-red); padding: 24px; box-shadow: 0 16px 48px rgba(0,0,0,0.28); }
-    .kyc-docs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px; }
-    .kyc-doc-box { border: 1px solid var(--border-light); border-radius: 6px; padding: 8px; background: #fafafa; text-align: center; }
-    .kyc-doc-box img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; margin-top: 6px; }
-    .tag-sug-chip { display: inline-block; padding: 4px 10px; margin: 3px; border-radius: 99px; background: #f1f5f9; border: 1px solid var(--border-light); font-size: 0.75rem; font-weight: 800; cursor: pointer; }
-    .tag-sug-chip:hover { background: var(--brand-red); color: #fff; border-color: var(--brand-red); }
+    .nr-auth-gate {
+      position: fixed; inset: 0; background: linear-gradient(135deg, #0c0d0e 0%, #1a060c 100%);
+      z-index: 12000; display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .nr-auth-card {
+      background: #ffffff; width: 100%; max-width: 440px; border-radius: 14px;
+      border-top: 5px solid var(--brand-red); padding: 30px 26px; box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    .nr-auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0 20px; background: var(--bg-page); padding: 5px; border-radius: 8px; }
+    .nr-auth-tab { border: none; background: transparent; padding: 8px; font-weight: 800; border-radius: 6px; cursor: pointer; color: var(--text-muted); }
+    .nr-auth-tab.active { background: var(--brand-red); color: #fff; }
+    .nr-user-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-page); border: 1px solid var(--border-light); padding: 5px 12px; border-radius: 99px; font-size: 0.82rem; font-weight: 800; }
+    .nr-article-row {
+      background: #ffffff; border: 1px solid var(--border-light); border-right: 4px solid var(--brand-red);
+      border-radius: 10px; padding: 16px 18px; margin-bottom: 12px; display: flex; align-items: center;
+      justify-content: space-between; gap: 14px; flex-wrap: wrap; box-shadow: var(--shadow-sm);
+    }
+    .nr-status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; font-size: 0.76rem; font-weight: 800; }
+    .status-published { background: #dcfce7; color: #15803d; }
+    .status-pending { background: #fef9c3; color: #a16207; }
+    .status-draft { background: #e2e8f0; color: #334155; }
+    .status-rejected { background: #fee2e2; color: #b91c1c; }
+    .staff-grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 18px; }
+    .staff-card-item {
+      background: #ffffff; border: 1px solid var(--border-light); border-radius: 12px; padding: 18px;
+      cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm); position: relative;
+    }
+    .staff-card-item:hover { border-color: var(--brand-red); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .dossier-overlay {
+      position: fixed; inset: 0; background: rgba(12,13,14,0.75); backdrop-filter: blur(5px);
+      z-index: 9500; display: flex; align-items: center; justify-content: center; padding: 18px;
+    }
+    .dossier-modal {
+      background: #ffffff; width: 100%; max-width: 880px; max-height: 90vh; overflow-y: auto;
+      border-radius: 14px; border-top: 5px solid var(--brand-red); padding: 26px; box-shadow: var(--shadow-lg);
+    }
+    .contact-action-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px;
+      font-size: 0.84rem; font-weight: 800; text-decoration: none; border: 1px solid var(--border-dark);
+    }
+    .wa-btn { background: #dcfce7; color: #15803d; border-color: #86efac; }
+    .mail-btn { background: var(--crimson-soft); color: var(--brand-red); border-color: rgba(184,13,56,0.25); }
+    .sig-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px; }
+    .sig-preview-box { background: #f8fafc; border: 1px dashed var(--border-dark); border-radius: 8px; padding: 8px; text-align: center; }
+    .sig-preview-box img { max-height: 90px; width: auto; margin: 0 auto; object-fit: contain; }
+    .pledge-Banner-notice {
+      background: #fff1f2; border: 1px solid #fecdd3; border-right: 4px solid var(--brand-red);
+      padding: 12px 18px; border-radius: 8px; margin-bottom: 18px; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px; flex-wrap: wrap; font-weight: 800; font-size: 0.88rem;
+    }
   `;
   document.head.appendChild(extraStyle);
 
-  // 1. تطهير تبويبات المراجعة من أي إيموجي واستبدالها بأيقونات Google Material Symbols الرسمية
-  const tabPostsBtn = document.querySelector('[data-tab="tab-rev-posts"]');
-  if (tabPostsBtn) {
-    tabPostsBtn.innerHTML = `<span class="material-symbols-rounded" translate="no">article</span><span>مراجعة الأخبار</span>`;
-  }
-  const tabSigsBtn = document.querySelector('[data-tab="tab-rev-sigs"]');
-  if (tabSigsBtn) {
-    tabSigsBtn.innerHTML = `<span class="material-symbols-rounded" translate="no">draw</span><span>مراجعة التوقيعات</span>`;
-  }
-  const tabVerifyBtn = document.querySelector('[data-tab="tab-rev-verify"]');
-  if (tabVerifyBtn) {
-    tabVerifyBtn.innerHTML = `<span class="material-symbols-rounded" translate="no">verified_user</span><span>طلبات التوثيق والهوية</span>`;
-  }
-
-  // 2. إضافة زر إعدادات الميثاق والمنصة للأدمن + زر تسجيل الخروج في الهيدر
-  const headerNav = document.querySelector(".header-nav");
-  if (headerNav && !document.getElementById("nav-settings-btn")) {
+  // 2. إضافة زر "الإعدادات والميثاق" للأدمن + زر تسجيل الخروج في الهيدر
+  const mainNav = document.getElementById("main-admin-nav");
+  if (mainNav && !document.getElementById("nav-settings-btn")) {
     const settingsBtn = document.createElement("button");
     settingsBtn.type = "button";
     settingsBtn.id = "nav-settings-btn";
     settingsBtn.className = "nav-btn hidden";
     settingsBtn.setAttribute("data-target-view", "view-settings");
-    settingsBtn.innerHTML = `<span class="material-symbols-rounded" translate="no">policy</span><span>إعدادات الميثاق</span>`;
-    headerNav.appendChild(settingsBtn);
+    settingsBtn.innerHTML = `
+      <span class="material-symbols-rounded">settings</span>
+      <span class="nav-label">الإعدادات والميثاق</span>
+    `;
+    mainNav.appendChild(settingsBtn);
 
     const logoutBtn = document.createElement("button");
     logoutBtn.type = "button";
-    logoutBtn.id = "nav-logout-btn";
+    logoutBtn.id = "nr-logout-btn";
     logoutBtn.className = "nav-btn";
     logoutBtn.title = "تسجيل الخروج";
-    logoutBtn.innerHTML = `<span class="material-symbols-rounded" translate="no">logout</span>`;
-    headerNav.appendChild(logoutBtn);
-  }
-
-  // 3. ترقية نافذة التوقيع لدعم التوقيعات الثلاثة المتطابقة + زر تخطي مؤقت عند التحديث
-  const sigArea = document.querySelector(".pledge-signature-area");
-  if (sigArea && !document.getElementById("sig-slots-container")) {
-    const noticeDiv = document.createElement("div");
-    noticeDiv.id = "pledge-rule-notice";
-    noticeDiv.style.cssText = "font-size:0.82rem;color:#b80d38;font-weight:800;margin-bottom:8px;";
-    noticeDiv.textContent = "تنبيه: يرجى رسم توقيعك الرسمي 3 مرات متطابقة ليتم إحالته لاعتماد رئيس التحرير.";
-    sigArea.insertBefore(noticeDiv, sigArea.firstChild);
-
-    const slotsDiv = document.createElement("div");
-    slotsDiv.id = "sig-slots-container";
-    slotsDiv.className = "sig-slots-grid";
-    slotsDiv.innerHTML = `
-      <div class="sig-slot-box" id="sig-slot-1">التوقيع الأول (1/3)</div>
-      <div class="sig-slot-box" id="sig-slot-2">التوقيع الثاني (2/3)</div>
-      <div class="sig-slot-box" id="sig-slot-3">التوقيع الثالث (3/3)</div>
+    logoutBtn.innerHTML = `
+      <span class="material-symbols-rounded" style="color:var(--brand-red);">logout</span>
+      <span class="nav-label">خروج</span>
     `;
-    sigArea.insertBefore(slotsDiv, document.querySelector(".signature-actions"));
-
-    const sigActions = document.querySelector(".signature-actions");
-    if (sigActions) {
-      sigActions.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;";
-      sigActions.innerHTML = `
-        <div style="display:flex;gap:8px;">
-          <button type="button" id="clear-signature-btn" class="btn-secondary">مسح اللوحة</button>
-          <button type="button" id="capture-sig-step-btn" class="btn-secondary" style="border:1px solid var(--brand-red);color:var(--brand-red);">تثبيت التوقيع في الخانة</button>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" id="postpone-charter-btn" class="btn-secondary hidden">تأجيل مؤقت لمتابعة العمل</button>
-          <button type="button" id="submit-pledge-btn" class="btn-primary">اعتماد وإرسال التوقيع</button>
-        </div>
-      `;
-    }
+    mainNav.appendChild(logoutBtn);
   }
 
-  // 4. استكمال حقول استديو النشر المرحلي (عدادات الحروف، الفرعيات، الفيديو، الخبر العاجل، وإدراج الصور)
-  const step1 = document.getElementById("studio-step-1");
-  if (step1 && !document.getElementById("title-char-counter")) {
-    const titleLabel = step1.querySelector("label");
-    if (titleLabel) {
-      titleLabel.innerHTML = `العنوان الرئيسي للخبر <span id="title-char-counter" class="char-counter-badge">0 / 110</span>`;
-    }
-    const sumLabels = step1.querySelectorAll("label");
-    if (sumLabels[1]) {
-      sumLabels[1].innerHTML = `الملخص الإخباري (الزبدة لمحركات البحث) <span id="summary-char-counter" class="char-counter-badge">0 / 220</span>`;
-      document.getElementById("post-summary")?.setAttribute("maxlength", "220");
-    }
+  // 3. حقن شريط التنبيه غير المعطل لتحديث الميثاق أعلى مساحة العمل
+  const workspace = document.querySelector(".newsroom-workspace");
+  if (workspace && !document.getElementById("charter-update-banner")) {
+    const banner = document.createElement("div");
+    banner.id = "charter-update-banner";
+    banner.className = "pledge-Banner-notice hidden";
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="material-symbols-rounded" style="color:var(--brand-red);">gavel</span>
+        <span id="charter-banner-msg">تم تحديث ميثاق الشرف الصحفي للمنصة. يرجى قراءته والتوقيع عليه (عملك ونشرك مستمر دون توقف).</span>
+      </div>
+      <button type="button" id="open-charter-from-banner-btn" class="btn-primary" style="padding:7px 14px;font-size:0.82rem;">
+        قراءة وتوقيع التحديث
+      </button>
+    `;
+    workspace.prepend(banner);
+  }
 
+  // 4. توسيع الخطوة 1 والخطوة 2 في استديو صياغة الأخبار لتشمل خيارات العاجل والفيديو ورابط الصورة
+  const step1 = document.getElementById("studio-step-1");
+  if (step1 && !document.getElementById("post-flags-row")) {
     const flagsDiv = document.createElement("div");
+    flagsDiv.id = "post-flags-row";
     flagsDiv.className = "form-group";
-    flagsDiv.style.cssText = "display:flex;gap:16px;flex-wrap:wrap;background:#f8f9fb;padding:12px;border-radius:6px;border:1px solid var(--border-light);";
     flagsDiv.innerHTML = `
-      <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
-        <input type="checkbox" id="post-is-breaking"> <span>خبر عاجل (شريط العاجل)</span>
-      </label>
-      <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
-        <input type="checkbox" id="post-is-quick"> <span>موجز النبض السريع</span>
-      </label>
-      <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
-        <input type="checkbox" id="post-is-featured"> <span>تغطية رئيسية (Hero)</span>
-      </label>
+      <label>نوع المادة الصحفية وأولوية الظهور</label>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;background:var(--bg-page);padding:12px 14px;border-radius:8px;border:1px solid var(--border-light);">
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+          <input type="checkbox" id="post-is-breaking"> 🚨 خبر عاجل (شريط العاجل)
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+          <input type="checkbox" id="post-is-featured"> ⭐ تغطية رئيسية (الواجهة الكبرى)
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+          <input type="checkbox" id="post-is-quick"> ⚡ موجز النبض السريع
+        </label>
+      </div>
     `;
     step1.insertBefore(flagsDiv, step1.querySelector(".step-actions"));
   }
 
   const step2 = document.getElementById("studio-step-2");
-  if (step2 && !document.getElementById("post-subcategory")) {
-    const extraStep2 = document.createElement("div");
-    extraStep2.innerHTML = `
+  if (step2 && !document.getElementById("post-image-url-input")) {
+    const mediaExtra = document.createElement("div");
+    mediaExtra.innerHTML = `
       <div class="form-group">
-        <label>التصنيف الفرعي</label>
-        <select id="post-subcategory" class="form-select"></select>
+        <label for="post-image-url-input">أو ضع رابط صورة مباشر (اختياري إذا لم ترفع ملفاً)</label>
+        <input type="url" id="post-image-url-input" class="form-input" placeholder="https://..." dir="ltr">
+        <div id="studio-main-img-preview" class="hidden" style="margin-top:10px;"></div>
       </div>
-      <div class="form-group">
-        <label>أو رابط مباشر للصورة البارزة (اختياري)</label>
-        <input type="url" id="post-image-url" class="form-input" placeholder="https://..." dir="ltr">
-        <div id="main-image-preview-box" class="hidden" style="margin-top:8px;">
-          <img id="main-image-preview-el" src="" alt="" style="max-height:130px;border-radius:6px;border:1px solid var(--border-light);">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="post-video-url">رابط فيديو (يوتيوب / Shorts / MP4 - اختياري)</label>
+          <input type="url" id="post-video-url" class="form-input" placeholder="https://www.youtube.com/watch?v=..." dir="ltr">
         </div>
-      </div>
-      <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div>
-          <label>رابط فيديو (يوتيوب أو MP4 - اختياري)</label>
-          <input type="url" id="post-video-url" class="form-input" placeholder="https://youtube.com/..." dir="ltr">
-        </div>
-        <div>
-          <label>نمط عرض الفيديو</label>
+        <div class="form-group">
+          <label for="post-video-type">نمط عرض الفيديو</label>
           <select id="post-video-type" class="form-select">
             <option value="none">بدون فيديو</option>
             <option value="standard">فيديو عريض (16:9)</option>
-            <option value="short_vertical">فيديو قصير عمودي (9:16)</option>
+            <option value="short_vertical">فيديو قصير عمودي (9:16 Reels/Shorts)</option>
           </select>
         </div>
-      </div>
-      <div class="form-group">
-        <label>الوسوم الموحدة المقترحة (اضغط لإضافتها بحد أقصى 3 وسوم لتحسين SEO)</label>
-        <div id="unified-tags-suggestions"></div>
       </div>
     `;
-    step2.insertBefore(extraStep2, step2.querySelector(".step-actions"));
+    step2.insertBefore(mediaExtra, step2.querySelector(".step-actions"));
   }
 
-  // إضافة مدخل خفي لرفع الصور المتعددة بين الفقرات في الخطوة 3
-  const step3 = document.getElementById("studio-step-3");
-  if (step3 && !document.getElementById("inline-image-file-input")) {
-    const fileInp = document.createElement("input");
-    fileInp.type = "file";
-    fileInp.id = "inline-image-file-input";
-    fileInp.accept = "image/*";
-    fileInp.className = "hidden";
-    step3.appendChild(fileInp);
-  }
-
-  // 5. استكمال حقول الملف الشخصي ونموذج الهوية الرسمية (KYC) وحساب العمر التلقائي
-  const profileForm = document.querySelector("#view-profile .profile-form");
-  if (profileForm && !document.getElementById("my-contact-email")) {
-    const headerInfo = document.querySelector("#view-profile .profile-header-info");
-    if (headerInfo) {
-      const ageSpan = document.createElement("div");
-      ageSpan.style.marginTop = "6px";
-      ageSpan.innerHTML = `<span id="my-live-age-badge" class="age-live-badge">العمر: غير محدد</span> <span id="my-verify-status-badge" class="status-pill st-draft">غير موثق</span>`;
-      headerInfo.querySelector("div")?.appendChild(ageSpan);
-    }
-
-    profileForm.innerHTML = `
-      <div class="aj-block-header" style="margin-top:18px;">
-        <span class="aj-crimson-pillar"></span>
-        <h3>البيانات المهنية والتواصل المباشر مع الإدارة</h3>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">
+  // 5. إضافة حقل "تاريخ إصدار الهوية" + "العمر المحسوب تلقائياً" في نموذج التوثيق (KYC)
+  const kycDobInput = document.getElementById("kyc-dob");
+  if (kycDobInput && !document.getElementById("kyc-issue-date")) {
+    const parentRow = kycDobInput.closest(".form-row-2");
+    if (parentRow) {
+      const issueRow = document.createElement("div");
+      issueRow.className = "form-row-2";
+      issueRow.innerHTML = `
         <div class="form-group">
-          <label>الاسم الصحفي الظاهر للقراء</label>
-          <input type="text" id="my-display-name" class="form-input">
-        </div>
-        <div class="form-group">
-          <label>اسم المستخدم (يمكنك تغييره متى شئت)</label>
-          <input type="text" id="my-username-input" class="form-input" dir="ltr">
-        </div>
-        <div class="form-group">
-          <label>الصفة الصحفية / المسمى الوظيفي</label>
-          <input type="text" id="my-job-title" class="form-input" placeholder="مثال: محرر الشؤون السياسية">
-        </div>
-        <div class="form-group">
-          <label>الرمز السريع للدخول (PIN من 4 أرقام)</label>
-          <input type="password" id="my-pin-code" class="form-input" maxlength="6" dir="ltr" placeholder="****">
-        </div>
-        <div class="form-group">
-          <label>البريد الإلكتروني للتواصل (اختياري)</label>
-          <input type="email" id="my-contact-email" class="form-input" dir="ltr" placeholder="name@example.com">
-        </div>
-        <div class="form-group">
-          <label>رقم الجوال (واتساب للتواصل المباشر)</label>
-          <input type="tel" id="my-whatsapp" class="form-input" dir="ltr" placeholder="+9677...">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>النبذة التعريفية المختصرة</label>
-        <textarea id="my-bio-input" class="form-textarea" rows="2"></textarea>
-      </div>
-      <div class="form-group">
-        <label>تحديث الصورة الشخصية</label>
-        <input type="file" id="my-avatar-file" class="form-input" accept="image/*">
-      </div>
-      <button type="button" id="save-basic-profile-btn" class="btn-primary">حفظ البيانات المهنية</button>
-
-      <div class="aj-block-header" style="margin-top:28px;">
-        <span class="aj-crimson-pillar"></span>
-        <h3>نموذج توثيق الهوية الرسمية والشارة الزرقاء (KYC)</h3>
-      </div>
-      <p style="font-size:0.84rem;color:#636770;margin-bottom:14px;">
-        يرجى إدخال البيانات مطابقة تماماً للوثيقة الرسمية. يتم حساب العمر تلقائياً من تاريخ الميلاد ويظهر للإدارة للتحقق من مطابقة الوثيقة.
-      </p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;">
-        <div class="form-group">
-          <label>الاسم الكامل كما هو مدون في الهوية</label>
-          <input type="text" id="kyc-legal-name" class="form-input" placeholder="الاسم الرباعي الرسمي">
-        </div>
-        <div class="form-group">
-          <label>نوع الوثيقة الرسمية</label>
-          <select id="kyc-doc-type" class="form-select">
-            <option value="id_card">بطاقة شخصية (وجه + ظهر + سيلفي)</option>
-            <option value="passport">جواز سفر (صفحة البيانات + سيلفي)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>رقم الهوية / جواز السفر</label>
-          <input type="text" id="kyc-doc-number" class="form-input" dir="ltr">
-        </div>
-        <div class="form-group">
-          <label>تاريخ الميلاد (يُحسب العمر تلقائياً)</label>
-          <input type="date" id="my-dob" class="form-input">
-        </div>
-        <div class="form-group">
-          <label>تاريخ إصدار الوثيقة</label>
+          <label for="kyc-issue-date">تاريخ إصدار الوثيقة (كما في البطاقة/الجواز)</label>
           <input type="date" id="kyc-issue-date" class="form-input">
         </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:8px;">
         <div class="form-group">
-          <label id="kyc-front-label">1. صورة وجه البطاقة الشخصية (أو الجواز)</label>
-          <input type="file" id="kyc-front-file" class="form-input" accept="image/*">
+          <label>العمر المحسوب تلقائياً (يتحدث آلياً مع الزمن)</label>
+          <div id="kyc-auto-age-display" style="height:46px;display:flex;align-items:center;padding:0 14px;background:var(--crimson-soft);color:var(--brand-red);font-weight:900;border-radius:8px;border:1px solid rgba(184,13,56,0.22);">
+            أدخل تاريخ الميلاد لحساب العمر تلقائياً
+          </div>
         </div>
-        <div class="form-group" id="kyc-back-group">
-          <label>2. صورة ظهر البطاقة الشخصية</label>
-          <input type="file" id="kyc-back-file" class="form-input" accept="image/*">
-        </div>
-        <div class="form-group">
-          <label>3. صورة سيلفي واضحة لك مع الوثيقة</label>
-          <input type="file" id="kyc-selfie-file" class="form-input" accept="image/*">
-        </div>
-      </div>
-
-      <button type="button" id="request-verification-btn" class="btn-primary" style="margin-top:12px;">
-        إرسال بيانات الهوية لطلب التوثيق والشارة الزرقاء
-      </button>
-    `;
+      `;
+      parentRow.insertAdjacentElement("afterend", issueRow);
+    }
   }
 
-  // 6. إنشاء قسم إعدادات الميثاق وإضافة صحفي جديد للأدمن
-  const workspace = document.querySelector(".newsroom-workspace");
+  // إضافة أزرار التواصل المباشر وعرض العمر في بطاقة الهوية الشخصية
+  const idCardBody = document.querySelector(".id-card-body");
+  if (idCardBody && !document.getElementById("my-auto-age-badge")) {
+    const ageBadge = document.createElement("div");
+    ageBadge.id = "my-auto-age-badge";
+    ageBadge.style.cssText = "margin-top:10px;font-size:0.85rem;font-weight:800;color:var(--text-body);";
+    ageBadge.textContent = "العمر: غير محدد";
+    idCardBody.appendChild(ageBadge);
+  }
+
+  // إضافة زر "إضافة صحفي جديد" في شاشة الكادر للأدمن
+  const staffView = document.getElementById("view-staff");
+  if (staffView && !document.getElementById("open-add-staff-modal-btn")) {
+    const header = staffView.querySelector(".aj-block-header");
+    if (header) {
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.id = "open-add-staff-modal-btn";
+      addBtn.className = "btn-primary";
+      addBtn.style.cssText = "margin-right:auto;padding:8px 16px;font-size:0.85rem;";
+      addBtn.innerHTML = `<span class="material-symbols-rounded">person_add</span> إضافة صحفي وتوليد هوية HP`;
+      header.appendChild(addBtn);
+    }
+  }
+
+  // 6. حقن واجهة "إعدادات المنصة وميثاق الشرف" للأدمن
   if (workspace && !document.getElementById("view-settings")) {
     const settingsSection = document.createElement("section");
     settingsSection.id = "view-settings";
     settingsSection.className = "nr-view hidden";
     settingsSection.innerHTML = `
-      <div class="nr-card-surface">
+      <div class="studio-wrapper">
         <div class="aj-block-header">
           <span class="aj-crimson-pillar"></span>
-          <h2>تحرير وتحديث ميثاق الشرف الصحفي</h2>
+          <h2>إعدادات المنصة وإدارة ميثاق الشرف الصحفي</h2>
         </div>
-        <p style="font-size:0.85rem;color:#636770;margin-bottom:12px;">
-          عند تعديل نص الميثاق والضغط على «حفظ وإصدار تحديث للميثاق»، سيرتفع رقم الإصدار تلقائياً ويظهر تنبيه لجميع الكتّاب لقراءته والتوقيع عليه (دون تعطيل عمل الكتّاب المعتمدين أثناء انتظار مراجعتك لتوقيعهم).
-        </p>
-        <div class="form-group">
-          <label>نص ميثاق الشرف الصحفي (يدعم HTML أو النص المباشر)</label>
-          <textarea id="admin-charter-editor" class="form-textarea" rows="8"></textarea>
-        </div>
-        <button type="button" id="save-charter-bump-btn" class="btn-primary">حفظ وإصدار تحديث للميثاق لكافة الكتّاب</button>
-      </div>
 
-      <div class="nr-card-surface">
-        <div class="aj-block-header">
-          <span class="aj-crimson-pillar"></span>
-          <h2>إضافة صحفي أو محرر جديد إلى الكادر</h2>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;">
-          <div class="form-group">
-            <label>اسم الصحفي</label>
-            <input type="text" id="new-staff-name" class="form-input" placeholder="الاسم الكامل">
+        <form id="platform-settings-form">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="set-site-name">اسم المنصة الإخبارية</label>
+              <input type="text" id="set-site-name" class="form-input" placeholder="حُجرية بريس">
+            </div>
+            <div class="form-group">
+              <label for="set-logo-url">رابط الشعار الرسمي (PNG مفرغ)</label>
+              <input type="url" id="set-logo-url" class="form-input" dir="ltr" placeholder="https://...">
+            </div>
           </div>
+
           <div class="form-group">
-            <label>اسم المستخدم للدخول</label>
-            <input type="text" id="new-staff-username" class="form-input" dir="ltr" placeholder="username">
+            <label for="set-site-desc">الوصف التعريفي للمنصة (SEO Description)</label>
+            <textarea id="set-site-desc" class="form-textarea" rows="2"></textarea>
           </div>
+
+          <div class="aj-block-header" style="margin-top:28px;">
+            <span class="aj-crimson-pillar"></span>
+            <h3>نص ميثاق الشرف الصحفي (الإصدار الحالي: <span id="current-charter-ver-label">1</span>)</h3>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;font-weight:700;">
+            يمكنك تعديل بنود ميثاق الشرف الصحفي هنا. إذا قمت بتفعيل خيار (إشعار جميع الكتّاب بالتحديث)، سيُطلب من جميع الصحفيين المعتمدين التوقيع على النسخة الجديدة دون أن يتوقف عملهم أو نشرهم.
+          </p>
           <div class="form-group">
-            <label>كلمة المرور أو رمز PIN</label>
-            <input type="text" id="new-staff-password" class="form-input" dir="ltr" placeholder="1234">
+            <textarea id="set-charter-html" class="form-textarea" rows="8" placeholder="اكتب بنود ميثاق الشرف الصحفي هنا..."></textarea>
           </div>
-          <div class="form-group">
-            <label>الصلاحية</label>
-            <select id="new-staff-role" class="form-select">
-              <option value="writer">صحفي / كاتب (يخضع للمراجعة)</option>
-              <option value="trusted_writer">صحفي معتمد (نشر مباشر)</option>
-              <option value="admin">رئيس تحرير / أدمن</option>
-            </select>
+          <div class="form-group" style="background:#fff1f2;padding:12px 14px;border-radius:8px;border:1px solid #fecdd3;">
+            <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:var(--brand-red);">
+              <input type="checkbox" id="bump-charter-version-chk">
+              <strong>تحديث إصدار الميثاق وإرسال تنبيه توقيع جديد لكافة الصحفيين في الكادر</strong>
+            </label>
           </div>
-        </div>
-        <button type="button" id="create-new-staff-btn" class="btn-primary">توليد الهوية الصحفية (HP) وإضافة الصحفي</button>
+
+          <div class="step-actions justify-end">
+            <button type="submit" class="btn-primary">
+              <span class="material-symbols-rounded">save</span> حفظ الإعدادات والميثاق
+            </button>
+          </div>
+        </form>
       </div>
     `;
     workspace.appendChild(settingsSection);
   }
 
-  // 7. إنشاء شاشة تسجيل الدخول + نافذة الملف الشامل للصحفي (Dossier Modal)
-  if (!document.getElementById("nr-login-overlay")) {
-    const loginDiv = document.createElement("div");
-    loginDiv.id = "nr-login-overlay";
-    loginDiv.className = "nr-login-overlay hidden";
-    loginDiv.innerHTML = `
-      <div class="nr-login-card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-          <span class="aj-crimson-pillar"></span>
-          <h2 style="font-size:1.3rem;font-weight:900;">غرفة الأخبار — حُجرية بريس</h2>
-        </div>
-        <p style="font-size:0.84rem;color:#636770;margin-bottom:18px;">
-          سجّل دخولك باستخدام <strong>الهوية الصحفية (مثال: HP10042)</strong> أو <strong>اسم المستخدم</strong> أو البريد الإلكتروني.
-        </p>
-        <form id="nr-login-form">
-          <div class="form-group">
-            <label>الهوية الصحفية (HP) أو اسم المستخدم</label>
-            <input type="text" id="login-identifier" class="form-input" required placeholder="HP10042 أو username" dir="ltr">
-          </div>
-          <div class="form-group">
-            <label>كلمة المرور أو الرمز السريع (PIN)</label>
-            <input type="password" id="login-secret" class="form-input" required placeholder="••••••••" dir="ltr">
-          </div>
-          <button type="submit" class="btn-primary" style="width:100%;padding:12px;">دخول إلى غرفة الأخبار</button>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(loginDiv);
+  // 7. تعديل نافذة الميثاق لدعم عداد الـ 3 توقيعات + زر الإغلاق المؤقت عند التحديث
+  const pledgeHeader = document.querySelector(".pledge-header");
+  if (pledgeHeader && !document.getElementById("pledge-step-badge")) {
+    const badge = document.createElement("span");
+    badge.id = "pledge-step-badge";
+    badge.style.cssText = "margin-right:auto;background:var(--crimson-soft);color:var(--brand-red);padding:4px 12px;border-radius:99px;font-size:0.8rem;font-weight:900;";
+    badge.textContent = "التوقيع 1 من 3";
+    pledgeHeader.appendChild(badge);
+
+    const closeUpdateBtn = document.createElement("button");
+    closeUpdateBtn.type = "button";
+    closeUpdateBtn.id = "postpone-pledge-update-btn";
+    closeUpdateBtn.className = "btn-secondary hidden";
+    closeUpdateBtn.style.cssText = "padding:5px 10px;font-size:0.78rem;";
+    closeUpdateBtn.textContent = "تأجيل مؤقت (لدي خبر عاجل)";
+    pledgeHeader.appendChild(closeUpdateBtn);
   }
 
-  if (!document.getElementById("staff-dossier-modal")) {
-    const dossierModal = document.createElement("div");
-    dossierModal.id = "staff-dossier-modal";
-    dossierModal.className = "dossier-modal-overlay hidden";
-    dossierModal.innerHTML = `
-      <div class="dossier-modal-sheet">
-        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-light);padding-bottom:12px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="aj-crimson-pillar"></span>
-            <h2 id="dossier-header-title" style="font-size:1.2rem;">الملف الشخصي والقانوني الشامل للصحفي</h2>
+  // 8. حقن نافذة الملف الشخصي الشامل للصحفي (Dossier Modal) + نافذة إضافة صحفي جديد + بوابة تسجيل الدخول
+  const modalsWrapper = document.createElement("div");
+  modalsWrapper.innerHTML = `
+    <!-- بوابة تسجيل الدخول لغرفة الأخبار -->
+    <div id="nr-login-gate" class="nr-auth-gate hidden">
+      <div class="nr-auth-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span class="aj-crimson-pillar"></span>
+          <h2 style="font-size:1.35rem;font-weight:900;">غرفة الأخبار — حُجرية بريس</h2>
+        </div>
+        <p style="font-size:0.84rem;color:var(--text-muted);font-weight:700;">
+          سجل دخولك بواسطة الهوية الصحفية (مثال: HP10042) أو اسم المستخدم أو البريد الإلكتروني
+        </p>
+
+        <div class="nr-auth-tabs">
+          <button type="button" class="nr-auth-tab active" id="tab-auth-standard">دخول بالهوية / المعرف</button>
+          <button type="button" class="nr-auth-tab" id="tab-auth-pin">دخول سريع (PIN)</button>
+        </div>
+
+        <form id="nr-standard-login-form">
+          <div class="form-group">
+            <label for="login-identifier">الهوية الصحفية (HP) أو اسم المستخدم أو البريد</label>
+            <input type="text" id="login-identifier" class="form-input" required placeholder="مثال: HP10042 أو admin" autocomplete="username">
           </div>
-          <button type="button" id="close-dossier-modal-btn" class="btn-secondary">إغلاق</button>
+          <div class="form-group">
+            <label for="login-password">كلمة المرور</label>
+            <input type="password" id="login-password" class="form-input" required placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn-primary" style="width:100%;justify-content:center;">
+            <span class="material-symbols-rounded">login</span> دخول إلى غرفة الأخبار
+          </button>
+        </form>
+
+        <form id="nr-pin-login-form" class="hidden">
+          <div class="form-group">
+            <label for="login-pin-input">رمز الدخول السريع (PIN)</label>
+            <input type="password" id="login-pin-input" class="form-input" maxlength="8" placeholder="••••" dir="ltr" style="text-align:center;font-size:1.4rem;letter-spacing:6px;">
+          </div>
+          <button type="submit" class="btn-primary" style="width:100%;justify-content:center;">
+            <span class="material-symbols-rounded">bolt</span> دخول فوري
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- نافذة الملف الشخصي الشامل للصحفي (The Author Dossier) -->
+    <div id="author-dossier-overlay" class="dossier-overlay hidden">
+      <div class="dossier-modal">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--border-light);padding-bottom:14px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="aj-crimson-pillar"></span>
+            <h2 id="dossier-modal-title" style="font-size:1.25rem;font-weight:900;">الملف الشخصي الشامل للصحفي</h2>
+          </div>
+          <button type="button" id="close-dossier-modal-btn" class="btn-secondary" style="padding:6px 14px;">إغلاق ✕</button>
         </div>
         <div id="dossier-modal-body"></div>
       </div>
-    `;
-    document.body.appendChild(dossierModal);
-  }
+    </div>
+
+    <!-- نافذة إضافة صحفي جديد للكادر -->
+    <div id="add-staff-overlay" class="dossier-overlay hidden">
+      <div class="dossier-modal" style="max-width:560px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border-light);padding-bottom:12px;margin-bottom:16px;">
+          <h3 style="font-weight:900;">إضافة صحفي جديد وتوليد هوية صحفية (HP)</h3>
+          <button type="button" id="close-add-staff-btn" class="btn-secondary" style="padding:5px 12px;">إغلاق</button>
+        </div>
+        <form id="add-staff-form">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>الاسم الصحفي الكامل</label>
+              <input type="text" id="new-staff-name" class="form-input" required placeholder="مثال: أ. محمد الحميري">
+            </div>
+            <div class="form-group">
+              <label>المسمى الوظيفي</label>
+              <input type="text" id="new-staff-job" class="form-input" placeholder="محرر صحفي / كاتب رأي">
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>اسم المستخدم للدخول</label>
+              <input type="text" id="new-staff-username" class="form-input" required dir="ltr" placeholder="mohammed">
+            </div>
+            <div class="form-group">
+              <label>كلمة المرور المبدئية</label>
+              <input type="text" id="new-staff-password" class="form-input" required dir="ltr" placeholder="123456">
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>رمز الدخول السريع (PIN - اختياري)</label>
+              <input type="text" id="new-staff-pin" class="form-input" dir="ltr" maxlength="6" placeholder="1122">
+            </div>
+            <div class="form-group">
+              <label>الصلاحية التحريرية</label>
+              <select id="new-staff-role" class="form-select">
+                <option value="writer">صحفي / كاتب (يخضع للمراجعة)</option>
+                <option value="trusted_writer">صحفي معتمد (نشر مباشر)</option>
+                <option value="admin">مدير تحرير / أدمن</option>
+              </select>
+            </div>
+          </div>
+          <div class="step-actions justify-end">
+            <button type="submit" class="btn-primary">إنشاء الحساب وتوليد الهوية الصحفية</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modalsWrapper);
 }
 
-// ==================== 6. إدارة الجلسة وتسجيل الدخول بالهوية الصحفية (HP#####) أو اسم المستخدم ====================
-function checkActiveSessionAndPermissions() {
-  try {
-    const savedId = localStorage.getItem(SESSION_USER_KEY);
-    if (savedId) {
-      const matched = nrState.staff.find((s) => s.id === savedId);
-      if (matched) {
-        nrState.currentUser = matched;
+// ==================== 6. نظام المصادقة والدخول بالهوية الصحفية (HP#####) ====================
+async function ensureAllStaffHavePressIds() {
+  for (const member of state.staff) {
+    const cleanId = normalizePressId(member.pressId || "");
+    if (!cleanId.startsWith("HP") || cleanId.length < 6) {
+      const newPressId = generateUniquePressId(state.staff);
+      member.pressId = newPressId;
+      if (member.id && member.id !== "master-admin") {
+        updateDoc(doc(db, "staff", member.id), { pressId: newPressId }).catch(() => {});
       }
     }
-  } catch (_) {}
-
-  const loginOverlay = document.getElementById("nr-login-overlay");
-  if (!nrState.currentUser) {
-    loginOverlay?.classList.remove("hidden");
-    return;
-  }
-
-  loginOverlay?.classList.add("hidden");
-
-  // إخفاء أزرار الإدارة عن الكاتب العادي تماماً ليرى واجهة موحدة دون شعور بنقص الصلاحيات
-  const isAdmin = isUserMasterOrAdmin(nrState.currentUser);
-  document.getElementById("nav-reviews-btn")?.classList.toggle("hidden", !isAdmin);
-  document.getElementById("nav-staff-btn")?.classList.toggle("hidden", !isAdmin);
-  document.getElementById("nav-settings-btn")?.classList.toggle("hidden", !isAdmin);
-
-  evaluateCharterPledgeRequirement();
-  populateProfileViewFields();
-  renderDashboardAndArticles();
-  if (isAdmin) {
-    renderAdminReviewsTabs();
-    renderStaffDirectoryGrid();
-    const charterEd = document.getElementById("admin-charter-editor");
-    if (charterEd && !charterEd.value) {
-      charterEd.value = nrState.settings.charterHtml || DEFAULT_CHARTER_HTML;
-    }
   }
 }
 
-function handleLoginSubmit(e) {
-  e.preventDefault();
-  const identRaw = (document.getElementById("login-identifier")?.value || "").trim();
-  const secretRaw = (document.getElementById("login-secret")?.value || "").trim();
-  if (!identRaw || !secretRaw) return;
+function authenticateCredentials(identifierRaw, passwordRaw) {
+  const idClean = String(identifierRaw || "").trim().toLowerCase();
+  const pressIdCandidate = normalizePressId(identifierRaw);
+  const passClean = String(passwordRaw || "").trim();
 
-  const identClean = identRaw.toLowerCase();
-  const normalizedHp = normalizePressId(identRaw);
+  // 1. التحقق من حساب المدير العام
+  const masterUser = String(state.settings.masterUsername || "admin").toLowerCase();
+  const masterPass = String(state.settings.masterPassword || "admin");
+  if (
+    (idClean === masterUser || pressIdCandidate === "HP10001") &&
+    passClean === masterPass
+  ) {
+    return { ...MASTER_ADMIN_FALLBACK };
+  }
 
-  // البحث بالهوية الصحفية (HP#####) أو اسم المستخدم أو البريد الإلكتروني أو الاسم
-  let matchedUser = nrState.staff.find((s) => {
-    const sHp = String(s.pressId || "").toUpperCase().replace(/[\s-]+/g, "");
-    const sUser = String(s.username || "").toLowerCase();
-    const sMail = String(s.contactEmail || s.email || "").toLowerCase();
-    const sName = String(s.name || "").toLowerCase();
-
+  // 2. البحث في قائمة الكادر (بالهوية الصحفية HP10042 أو اسم المستخدم أو البريد الإلكتروني)
+  const matched = state.staff.find((s) => {
+    const sUser = String(s.username || "").trim().toLowerCase();
+    const sEmail = String(s.email || s.contactEmail || "").trim().toLowerCase();
+    const sPressId = normalizePressId(s.pressId || "");
     const idMatches =
-      (normalizedHp && sHp === normalizedHp) ||
-      sHp.toLowerCase() === identClean ||
-      sUser === identClean ||
-      sMail === identClean ||
-      sName === identClean;
-
-    if (!idMatches) return false;
-    const passMatches =
-      String(s.password || "") === secretRaw ||
-      String(s.pinCode || "") === secretRaw ||
-      String(s.pin || "") === secretRaw;
-    return passMatches;
+      (idClean && (sUser === idClean || sEmail === idClean)) ||
+      (pressIdCandidate && sPressId === pressIdCandidate);
+    return idMatches && String(s.password || "").trim() === passClean;
   });
 
-  // في حال كانت قاعدة بيانات الكادر فارغة عند أول تشغيل، نسمح بإنشاء حساب المدير العام تلقائياً
-  if (!matchedUser && nrState.staff.length === 0) {
-    const masterPressId = "HP10001";
-    const newMaster = {
-      id: "master_admin",
-      pressId: masterPressId,
-      name: identRaw,
-      username: identClean,
-      password: secretRaw,
-      pinCode: secretRaw,
-      role: "admin",
-      isMasterAdmin: true,
-      verified: true,
-      canPublishDirectly: true,
-      charterSignedVersion: nrState.settings.charterVersion || 1,
-      charterStatus: "approved"
-    };
-    setDoc(doc(db, "staff", "master_admin"), newMaster).catch(() => {});
-    nrState.staff.push(newMaster);
-    matchedUser = newMaster;
-  }
-
-  if (!matchedUser) {
-    showAdminToast("بيانات الدخول غير صحيحة. تأكد من الهوية الصحفية (HP) أو كلمة المرور.");
-    return;
-  }
-
-  if (matchedUser.frozen) {
-    showAdminToast("هذا الحساب موقوف مؤقتاً من قبل الإدارة.");
-    return;
-  }
-
-  // ضمان امتلاك المستخدم لهوية صحفية ثابتة بصيغة HP#####
-  if (!normalizePressId(matchedUser.pressId)) {
-    const newHp = generateUniquePressId(nrState.staff);
-    matchedUser.pressId = newHp;
-    updateDoc(doc(db, "staff", matchedUser.id), { pressId: newHp }).catch(() => {});
-  }
-
-  nrState.currentUser = matchedUser;
-  localStorage.setItem(SESSION_USER_KEY, matchedUser.id);
-  showAdminToast(`مرحباً بك في غرفة الأخبار: ${matchedUser.name} (${matchedUser.pressId})`);
-  checkActiveSessionAndPermissions();
+  return matched || null;
 }
 
-// ==================== 7. محرك ميثاق الشرف والتوقيع الرقمي (3 مرات للجدد / غير معطل للمعتمدين) ====================
-let sigCanvasCtx = null;
-let isDrawingSig = false;
-let hasDrawnOnCurrentPad = false;
+function authenticateByPin(pinRaw) {
+  const pin = String(pinRaw || "").trim();
+  if (!pin) return null;
 
-function initSignaturePadCanvas() {
+  if (pin === String(state.settings.masterPin || "0000").trim()) {
+    return { ...MASTER_ADMIN_FALLBACK };
+  }
+
+  return (
+    state.staff.find((s) => String(s.pinCode || s.pin || "").trim() === pin) || null
+  );
+}
+
+function setLoggedInUser(userObj) {
+  if (userObj.accountStatus === "frozen") {
+    showAdminToast("عذراً، هذا الحساب موقوف مؤقتاً من قِبل الإدارة.");
+    return;
+  }
+
+  state.currentUser = userObj;
+  localStorage.setItem(NR_SESSION_KEY, JSON.stringify({ id: userObj.id, pressId: userObj.pressId }));
+
+  document.getElementById("nr-login-gate")?.classList.add("hidden");
+
+  // إظهار أزرار المراجعات والكادر والإعدادات للأدمن فقط (حماية نفسيات الكتّاب العاديين)
+  const adminFlag = isUserAdmin(userObj);
+  document.getElementById("nav-reviews-btn")?.classList.toggle("hidden", !adminFlag);
+  document.getElementById("nav-staff-btn")?.classList.toggle("hidden", !adminFlag);
+  document.getElementById("nav-settings-btn")?.classList.toggle("hidden", !adminFlag);
+
+  // فحص حالة ميثاق الشرف والتوقيع الرقمي
+  evaluateCharterPledgeRequirement();
+
+  // تحديث البيانات المعروضة في اللوحة والملف الشخصي
+  if (typeof renderDashboardAndMyArticles === "function") renderDashboardAndMyArticles();
+  if (typeof populateMyProfileView === "function") populateMyProfileView();
+  if (adminFlag && typeof renderAdminReviewsAndStaff === "function") {
+    renderAdminReviewsAndStaff();
+  }
+}
+
+function handleLogout() {
+  state.currentUser = null;
+  localStorage.removeItem(NR_SESSION_KEY);
+  document.getElementById("nr-login-gate")?.classList.remove("hidden");
+  showAdminToast("تم تسجيل الخروج من غرفة الأخبار");
+}
+
+// ==================== 7. محرك ميثاق الشرف الصحفي والتوقيع الرقمي الثلاثي (Canvas Signature) ====================
+function initSignatureCanvasPad() {
   const canvas = document.getElementById("signature-pad");
   if (!canvas) return;
-  sigCanvasCtx = canvas.getContext("2d");
-  sigCanvasCtx.strokeStyle = "#0c0d0e";
-  sigCanvasCtx.lineWidth = 2.4;
-  sigCanvasCtx.lineCap = "round";
+  const ctx = canvas.getContext("2d");
 
-  const getPos = (evt) => {
+  const resizeCanvas = () => {
     const rect = canvas.getBoundingClientRect();
-    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    if (rect.width > 0) {
+      canvas.width = rect.width;
+      canvas.height = rect.height || 180;
+      ctx.strokeStyle = "#0c0d0e";
+      ctx.lineWidth = 2.6;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+    }
+  };
+
+  setTimeout(resizeCanvas, 80);
+  window.addEventListener("resize", resizeCanvas);
+
+  const getPos = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return {
-      x: ((clientX - rect.left) / rect.width) * canvas.width,
-      y: ((clientY - rect.top) / rect.height) * canvas.height
+      x: clientX - rect.left,
+      y: clientY - rect.top
     };
   };
 
-  const startDraw = (evt) => {
-    isDrawingSig = true;
-    hasDrawnOnCurrentPad = true;
-    const p = getPos(evt);
-    sigCanvasCtx.beginPath();
-    sigCanvasCtx.moveTo(p.x, p.y);
+  const startDraw = (e) => {
+    e.preventDefault();
+    state.isDrawingSignature = true;
+    state.hasStrokeOnCurrentCanvas = true;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
   };
 
-  const moveDraw = (evt) => {
-    if (!isDrawingSig) return;
-    evt.preventDefault();
-    const p = getPos(evt);
-    sigCanvasCtx.lineTo(p.x, p.y);
-    sigCanvasCtx.stroke();
+  const moveDraw = (e) => {
+    if (!state.isDrawingSignature) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
   };
 
   const endDraw = () => {
-    isDrawingSig = false;
+    state.isDrawingSignature = false;
   };
 
   canvas.addEventListener("mousedown", startDraw);
@@ -792,246 +858,173 @@ function initSignaturePadCanvas() {
   canvas.addEventListener("touchstart", startDraw, { passive: false });
   canvas.addEventListener("touchmove", moveDraw, { passive: false });
   window.addEventListener("touchend", endDraw);
+
+  document.getElementById("clear-signature-btn")?.addEventListener("click", () => {
+    clearSignatureCanvas();
+  });
+
+  document.getElementById("submit-pledge-btn")?.addEventListener("click", () => {
+    handleSignatureStepSubmission();
+  });
+
+  document.getElementById("postpone-pledge-update-btn")?.addEventListener("click", () => {
+    document.getElementById("pledge-overlay")?.classList.add("hidden");
+    document.getElementById("charter-update-banner")?.classList.remove("hidden");
+    showAdminToast("يمكنك متابعة عملك العاجل الآن والتوقيع لاحقاً من الشريط العلوي.");
+  });
+
+  document.getElementById("open-charter-from-banner-btn")?.addEventListener("click", () => {
+    openCharterPledgeModal("update");
+  });
 }
 
 function clearSignatureCanvas() {
   const canvas = document.getElementById("signature-pad");
-  if (!canvas || !sigCanvasCtx) return;
-  sigCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-  hasDrawnOnCurrentPad = false;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  state.hasStrokeOnCurrentCanvas = false;
 }
 
 function evaluateCharterPledgeRequirement() {
-  const user = nrState.currentUser;
-  if (!user) return;
-
-  const currentCharterVer = Number(nrState.settings.charterVersion || 1);
-  const userSignedVer = Number(user.charterSignedVersion || 0);
-  const hasEverBeenApproved = user.charterStatus === "approved" || Boolean(user.charterEverApproved);
-
-  const pledgeOverlay = document.getElementById("pledge-overlay");
-  const pledgeTextBox = document.getElementById("pledge-text-box");
-  const ruleNotice = document.getElementById("pledge-rule-notice");
-  const postponeBtn = document.getElementById("postpone-charter-btn");
-  const slotsContainer = document.getElementById("sig-slots-container");
-
-  if (pledgeTextBox) {
-    pledgeTextBox.innerHTML = nrState.settings.charterHtml || DEFAULT_CHARTER_HTML;
-  }
-
-  // إزالة أي شريط تنبيه قديم
-  document.getElementById("non-blocking-charter-banner")?.remove();
-
-  // إذا كان الكاتب قد وقّع على آخر إصدار وليس مرفوضاً، لا نعرض النافذة
-  if (userSignedVer >= currentCharterVer && user.charterStatus !== "rejected") {
-    pledgeOverlay?.classList.add("hidden");
+  const user = state.currentUser;
+  if (!user || isUserAdmin(user)) {
+    document.getElementById("pledge-overlay")?.classList.add("hidden");
+    document.getElementById("charter-update-banner")?.classList.add("hidden");
     return;
   }
 
-  nrState.capturedSignatures = [];
+  const currentVer = Number(state.settings.charterVersion || 1);
+  const userSignedVer = Number(user.signedCharterVersion || 0);
+  const sigStatus = user.signatureStatus || "none"; // "none" | "pending" | "approved" | "rejected"
+  const everApprovedBefore = Boolean(user.everApprovedCharter || sigStatus === "approved");
 
-  // الحالة 1: صحفي قديم ومعتمد سابقاً وصدر تحديث جديد للميثاق (توقيع مرة واحدة فقط + غير معطل للعمل)
-  if (hasEverBeenApproved && userSignedVer > 0 && userSignedVer < currentCharterVer && user.charterStatus !== "rejected") {
-    nrState.requiredSignatureCount = 1;
-    nrState.isUpdateCharterMode = true;
+  // 1. إذا لم يوقع من قبل أو تم رفض توقيعه: نافذة إجبارية بـ 3 توقيعات متتالية
+  if (sigStatus === "none" || sigStatus === "rejected") {
+    openCharterPledgeModal("first_time");
+    return;
+  }
 
-    if (ruleNotice) {
-      ruleNotice.textContent = "تم تحديث ميثاق الشرف الصحفي. يرجى التوقيع مرة واحدة فقط للموافقة على التحديث (حسابك مستمر في العمل والنشر بشكل طبيعي).";
+  // 2. إذا كان معتمداً سابقاً ولكن الإدارة قامت بتحديث إصدار الميثاق:
+  // يظهر له التحديث بتوقيع واحد فقط، مع إمكانية التأجيل المؤقت لعدم تعطيل الأخبار العاجلة
+  if (everApprovedBefore && userSignedVer < currentVer && sigStatus !== "pending") {
+    document.getElementById("charter-update-banner")?.classList.remove("hidden");
+    openCharterPledgeModal("update");
+    return;
+  }
+
+  document.getElementById("pledge-overlay")?.classList.add("hidden");
+  document.getElementById("charter-update-banner")?.classList.add("hidden");
+}
+
+function openCharterPledgeModal(mode = "first_time") {
+  state.pledgeMode = mode;
+  state.pledgeRequiredCount = mode === "first_time" ? 3 : 1;
+  state.pledgeCollectedSignatures = [];
+
+  const overlay = document.getElementById("pledge-overlay");
+  const textBox = document.getElementById("pledge-text-box");
+  const postponeBtn = document.getElementById("postpone-pledge-update-btn");
+  const warningText = document.querySelector(".pledge-warning");
+
+  if (textBox) {
+    textBox.innerHTML = state.settings.charterHtml || DEFAULT_CHARTER_HTML;
+  }
+
+  if (mode === "first_time") {
+    postponeBtn?.classList.add("hidden");
+    if (warningText) {
+      warningText.textContent =
+        "يرجى قراءة ميثاق الشرف الصحفي بعناية، ثم رسم توقيعك الشخصي (3 مرات متطابقة) لإحالته لاعتماد الإدارة وتفعيل النشر.";
     }
+  } else {
     postponeBtn?.classList.remove("hidden");
-    if (slotsContainer) {
-      slotsContainer.style.gridTemplateColumns = "1fr";
-      slotsContainer.innerHTML = `<div class="sig-slot-box" id="sig-slot-1">توقيع الموافقة على التحديث (1/1)</div>`;
+    if (warningText) {
+      warningText.textContent =
+        "تم تحديث ميثاق الشرف الصحفي. يرجى التوقيع (لمرة واحدة فقط) لتأكيد الاطلاع، وسيبقى حسابك نشطاً للنشر دون أي توقف.";
     }
-
-    // شريط تنبيه علوي غير معطل للعمل في حال قام بتأجيل التوقيع لنشر خبر عاجل
-    const ws = document.querySelector(".newsroom-workspace");
-    if (ws) {
-      const banner = document.createElement("div");
-      banner.id = "non-blocking-charter-banner";
-      banner.className = "charter-update-banner";
-      banner.innerHTML = `
-        <span>تنبيه: تم تحديث ميثاق الشرف الصحفي (الإصدار ${currentCharterVer}). يرجى قراءته والتوقيع عليه.</span>
-        <button type="button" class="btn-primary" id="reopen-charter-modal-btn" style="padding:6px 14px;font-size:0.8rem;">قراءة الميثاق والتوقيع الآن</button>
-      `;
-      ws.insertBefore(banner, ws.firstChild);
-      banner.querySelector("#reopen-charter-modal-btn")?.addEventListener("click", () => {
-        pledgeOverlay?.classList.remove("hidden");
-      });
-    }
-
-    pledgeOverlay?.classList.remove("hidden");
-    return;
   }
 
-  // الحالة 2: صحفي جديد لأول مرة أو تم رفض توقيعه (إلزامي 3 توقيعات متطابقة)
-  nrState.requiredSignatureCount = 3;
-  nrState.isUpdateCharterMode = false;
-  if (ruleNotice) {
-    ruleNotice.textContent =
-      user.charterStatus === "rejected"
-        ? "تنبيه من الإدارة: تم رفض توقيعك السابق لعدم المطابقة. يرجى رسم توقيعك الحقيقي 3 مرات متطابقة."
-        : "لإكمال تفعيل حسابك الصحفي: يرجى رسم توقيعك الرسمي 3 مرات متطابقة تماماً ليتم اعتماده من الإدارة.";
-  }
-  postponeBtn?.classList.add("hidden");
-  if (slotsContainer) {
-    slotsContainer.style.gridTemplateColumns = "repeat(3, 1fr)";
-    slotsContainer.innerHTML = `
-      <div class="sig-slot-box" id="sig-slot-1">التوقيع الأول (1/3)</div>
-      <div class="sig-slot-box" id="sig-slot-2">التوقيع الثاني (2/3)</div>
-      <div class="sig-slot-box" id="sig-slot-3">التوقيع الثالث (3/3)</div>
-    `;
-  }
-  pledgeOverlay?.classList.remove("hidden");
-}
-
-function handleCaptureSignatureStep() {
-  const canvas = document.getElementById("signature-pad");
-  if (!canvas || !hasDrawnOnCurrentPad) {
-    showAdminToast("يرجى رسم توقيعك داخل المربع أولاً قبل التثبيت.");
-    return;
-  }
-
-  if (nrState.capturedSignatures.length >= nrState.requiredSignatureCount) {
-    showAdminToast("لقد أكملت تثبيت جميع التوقيعات المطلوبة. اضغط على اعتماد وإرسال.");
-    return;
-  }
-
-  const dataUrl = canvas.toDataURL("image/png");
-  nrState.capturedSignatures.push(dataUrl);
-  const slotIdx = nrState.capturedSignatures.length;
-  const slotEl = document.getElementById(`sig-slot-${slotIdx}`);
-  if (slotEl) {
-    slotEl.classList.add("filled");
-    slotEl.innerHTML = `<img src="${dataUrl}" alt="توقيع ${slotIdx}">`;
-  }
-
+  overlay?.classList.remove("hidden");
   clearSignatureCanvas();
-  showAdminToast(`تم تثبيت التوقيع (${slotIdx} من ${nrState.requiredSignatureCount}) بنجاح.`);
+  updatePledgeStepUi();
 }
 
-async function handleSubmitCharterPledge() {
-  // إذا رسم التوقيع الأخير ولم يضغط تثبيت، نلتقطه تلقائياً للتسهيل
-  if (
-    hasDrawnOnCurrentPad &&
-    nrState.capturedSignatures.length < nrState.requiredSignatureCount
-  ) {
-    handleCaptureSignatureStep();
+function updatePledgeStepUi() {
+  const stepBadge = document.getElementById("pledge-step-badge");
+  const submitBtn = document.getElementById("submit-pledge-btn");
+  const currentNum = state.pledgeCollectedSignatures.length + 1;
+  const total = state.pledgeRequiredCount;
+
+  if (stepBadge) {
+    stepBadge.textContent =
+      total === 3
+        ? `التوقيع ${currentNum} من 3 (يجب تطابق التوقيعات)`
+        : `توقيع تحديث الميثاق (مرة واحدة)`;
   }
 
-  if (nrState.capturedSignatures.length < nrState.requiredSignatureCount) {
+  if (submitBtn) {
+    if (currentNum < total) {
+      submitBtn.innerHTML = `<span class="material-symbols-rounded">draw</span> حفظ التوقيع (${currentNum}/${total}) والتالي`;
+    } else {
+      submitBtn.innerHTML = `<span class="material-symbols-rounded">verified</span> أوافق وأعتمد التوقيع النهائي`;
+    }
+  }
+}
+
+async function handleSignatureStepSubmission() {
+  if (!state.hasStrokeOnCurrentCanvas) {
+    showAdminToast("يرجى رسم توقيعك داخل المربع المخصص أولاً.");
+    return;
+  }
+
+  const canvas = document.getElementById("signature-pad");
+  const sigDataUrl = canvas.toDataURL("image/png");
+  state.pledgeCollectedSignatures.push(sigDataUrl);
+
+  // إذا كان مطلوباً 3 توقيعات ولم يكملها بعد، نمسح اللوحة ليوقع التوقيع التالي
+  if (state.pledgeCollectedSignatures.length < state.pledgeRequiredCount) {
+    clearSignatureCanvas();
+    updatePledgeStepUi();
     showAdminToast(
-      `يرجى إكمال تثبيت التوقيع ${nrState.requiredSignatureCount} مرات متطابقة قبل الإرسال.`
+      `تم حفظ التوقيع رقم (${state.pledgeCollectedSignatures.length}) — يرجى رسم التوقيع المطابق التالي.`
     );
     return;
   }
 
-  const user = nrState.currentUser;
-  if (!user) return;
+  // اكتملت التوقيعات المطلوبة -> الحفظ في قاعدة بيانات Firestore
+  const user = state.currentUser;
+  if (!user || !user.id) return;
 
-  const currentCharterVer = Number(nrState.settings.charterVersion || 1);
-  const isAdmin = isUserMasterOrAdmin(user);
+  const currentVer = Number(state.settings.charterVersion || 1);
+  const isUpdateMode = state.pledgeMode === "update";
 
   const updatePayload = {
-    charterSignedVersion: currentCharterVer,
-    charterSignatures: nrState.capturedSignatures,
-    charterLatestSignature: nrState.capturedSignatures[nrState.capturedSignatures.length - 1],
-    charterSignedAt: Date.now(),
-    // إذا كان صحفياً معتمداً سابقاً ويوقع على تحديث، يظلcharterEverApproved=true ليتمكن من النشر أثناء مراجعة توقيعه
-    charterEverApproved: Boolean(user.charterEverApproved || user.charterStatus === "approved" || isAdmin),
-    charterStatus: isAdmin ? "approved" : "pending_review"
+    signatures: state.pledgeCollectedSignatures,
+    primarySignature: state.pledgeCollectedSignatures[0],
+    signedCharterVersion: currentVer,
+    signatureStatus: "pending",
+    signatureType: isUpdateMode ? "update" : "first_time",
+    // إذا كان موقعاً ومعتمداً سابقاً (تحديث ميثاق)، نحافظ على أهليته للنشر دون توقف
+    everApprovedCharter: Boolean(user.everApprovedCharter || isUpdateMode),
+    signedAt: Date.now()
   };
 
   try {
     await updateDoc(doc(db, "staff", user.id), updatePayload);
-    nrState.currentUser = { ...user, ...updatePayload };
+    state.currentUser = { ...state.currentUser, ...updatePayload };
     document.getElementById("pledge-overlay")?.classList.add("hidden");
-    document.getElementById("non-blocking-charter-banner")?.remove();
-    showAdminToast("تم حفظ توقيعك على ميثاق الشرف الصحفي وإحالته للاعتماد.");
-  } catch (_) {
-    showAdminToast("تم حفظ التوقيع محلياً وسيتم مزامنته.");
-    document.getElementById("pledge-overlay")?.classList.add("hidden");
+    document.getElementById("charter-update-banner")?.classList.add("hidden");
+
+    if (isUpdateMode) {
+      showAdminToast("تم إرسال توقيع تحديث الميثاق للمراجعة — يمكنك متابعة النشر كالمعتاد ✓");
+    } else {
+      showAdminToast("تم إرسال توقيعاتك الثلاثة على ميثاق الشرف لاعتماد رئيس التحرير ✓");
+    }
+  } catch (err) {
+    console.error(err);
+    showAdminToast("حدث خطأ أثناء حفظ التوقيع، يرجى المحاولة مرة أخرى.");
   }
 }
 
-// ==================== 8. استديو النشر المرحلي (Multi-Step Article Studio) + الحفظ التلقائي ====================
-function switchStudioStep(stepNumber) {
-  nrState.currentStep = stepNumber;
-  [1, 2, 3].forEach((num) => {
-    document
-      .getElementById(`studio-step-${num}`)
-      ?.classList.toggle("hidden", num !== stepNumber);
-    document
-      .querySelector(`.step-indicator[data-step="${num}"]`)
-      ?.classList.toggle("active", num === stepNumber);
-  });
-  saveStudioDraftToLocalStorage();
-}
-
-function populateCategoryAndSubcategorySelects() {
-  const catSelect = document.getElementById("post-category");
-  const subSelect = document.getElementById("post-subcategory");
-  if (!catSelect) return;
-
-  const currentVal = catSelect.value;
-  catSelect.innerHTML = nrState.categories
-    .map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`)
-    .join("");
-
-  if (currentVal) catSelect.value = currentVal;
-
-  const updateSubs = () => {
-    if (!subSelect) return;
-    const selectedCat = nrState.categories.find((c) => c.name === catSelect.value) || nrState.categories[0];
-    const subs = selectedCat?.subcategories || [];
-    subSelect.innerHTML = [
-      `<option value="">— اختر التصنيف الفرعي —</option>`,
-      ...subs.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
-    ].join("");
-  };
-
-  catSelect.onchange = updateSubs;
-  updateSubs();
-
-  // رسم الوسوم الموحدة المقترحة
-  const sugBox = document.getElementById("unified-tags-suggestions");
-  const tagsInput = document.getElementById("post-tags");
-  if (sugBox && tagsInput) {
-    sugBox.innerHTML = (nrState.settings.unifiedTags || [])
-      .map((t) => `<span class="tag-sug-chip" data-add-tag="${escapeHtml(t)}">#${escapeHtml(t)}</span>`)
-      .join("");
-
-    sugBox.querySelectorAll("[data-add-tag]").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        const tag = chip.getAttribute("data-add-tag");
-        const existing = (tagsInput.value || "")
-          .split(/\s+/)
-          .map((x) => x.replace(/^#+/, "").trim())
-          .filter(Boolean);
-        if (existing.includes(tag)) return;
-        if (existing.length >= 3) {
-          showAdminToast("الحد الأقصى هو 3 وسوم لكل خبر لتركيز قوة الفهرسة (SEO).");
-          return;
-        }
-        existing.push(tag);
-        tagsInput.value = existing.map((x) => `#${x}`).join(" ");
-        saveStudioDraftToLocalStorage();
-      });
-    });
-  }
-}
-
-// الحفظ التلقائي الفوري للمرحلة والمحتوى (Auto-Save)
-function saveStudioDraftToLocalStorage() {
-  try {
-    const payload = {
-      savedAt: Date.now(),
-      currentStep: nrState.currentStep,
-      editingPostId: nrState.editingPostId,
-      title: document.getElementById("post-title")?.value || "",
-      summary: document.getElementById("post-summary")?.value || "",
-      category: document.getElementById("post-category")?.value || "",
-      subcategory: document.getElementById("post-subcategory")?.value || "",
-      tags: document.getElementById("post-tags")?.value || "",
-      imageUrl: document.getElementById("post-image-url")?.value || nrState.mainImageDataUrl || "",
-      videoUrl
+/* === نهاية الجزء الأول من admin-app.js — يتبع الجزء الثاني مباشرة === */
