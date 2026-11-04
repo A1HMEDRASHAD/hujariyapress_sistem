@@ -3,366 +3,590 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>غرفة الأخبار | حُجرية بريس</title>
-  <!-- منع محركات البحث من فهرسة لوحة التحكم -->
+  <title>غرفة الأخبار | حُجرية بريس — Hujariya Press</title>
   <meta name="robots" content="noindex, nofollow">
-  
-  <!-- الخطوط والأيقونات الرسمية -->
+  <meta name="theme-color" content="#b80d38">
+
+  <!-- أيقونة غرفة الأخبار القرمزية -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%23b80d38%22/><text x=%2250%%22 y=%2258%%22 font-size=%2264%22 fill=%22%23ffffff%22 font-family=%22Almarai,sans-serif%22 font-weight=%22800%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22>ح</text></svg>">
+
+  <!-- الخطوط الرسمية (Almarai & Alexandria) + أيقونات Google Material Symbols -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@22,500,0,0" rel="stylesheet">
-  
+
+  <!-- ربط مزدوج لملف المظهر (يعمل تلقائياً سواء سمّيت الملف style.css أو admin-style.css) -->
+  <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./admin-style.css">
 </head>
 <body class="newsroom-body">
 
-  <!-- ==================== 1. نافذة التوقيع الإجبارية (ميثاق الشرف) ==================== -->
-  <div id="pledge-overlay" class="pledge-overlay hidden">
+  <!-- =====================================================================
+       1. نافذة التوقيع الإجبارية والذكية على ميثاق الشرف الصحفي
+       ===================================================================== -->
+  <div id="pledge-overlay" class="pledge-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pledge-modal-heading">
     <div class="pledge-modal">
       <div class="pledge-header">
-        <span class="material-symbols-rounded">gavel</span>
-        <h2>ميثاق الشرف الصحفي</h2>
+        <span class="material-symbols-rounded" translate="no">gavel</span>
+        <h2 id="pledge-modal-heading">ميثاق الشرف الصحفي — حُجرية بريس</h2>
+        <span id="pledge-step-badge" class="pledge-step-pill">التوقيع 1 من 3</span>
+        <button type="button" id="postpone-pledge-update-btn" class="btn-secondary btn-postpone-pledge hidden">
+          تأجيل مؤقت (لدي خبر عاجل)
+        </button>
       </div>
+
       <div class="pledge-content">
-        <p class="pledge-warning">يرجى قراءة الميثاق بعناية والموافقة عليه؛ فهو شرط أساسي لاستخدام غرفة الأخبار.</p>
+        <p class="pledge-warning">
+          يرجى قراءة ميثاق الشرف الصحفي بعناية، ثم رسم توقيعك الشخصي (3 مرات متطابقة) لإحالته لاعتماد الإدارة وتفعيل النشر.
+        </p>
         <div id="pledge-text-box" class="pledge-scroll-box">
-          <div class="skeleton-text">جاري تحميل بنود الميثاق...</div>
+          <h3>أولاً: الالتزام المهني والأخلاقي</h3>
+          <p>يلتزم الصحفي والكاتب في منصة <strong>حُجرية بريس (Hujariya Press)</strong> بتحري الدقة والمصداقية التامة، والتأكد من صحة الأخبار والمعلومات من مصادرها الموثوقة قبل صياغتها أو نشرها.</p>
+          <h3>ثانياً: الثوابت الوطنية والمسؤولية القانونية</h3>
+          <p>يلتزم العضو باحترام الثوابت الوطنية، والامتناع التام عن نشر الشائعات أو المواد المحرضة أو المنتهكة لحقوق الملكية الفكرية، ويتحمل المسؤولية القانونية والأدبية الكاملة عن صحة البيانات والوثائق المرفقة في ملف هويته الصحفية.</p>
+          <h3>ثالثاً: سرية غرفة الأخبار</h3>
+          <p>تُعد بيانات الدخول والهوية الصحفية (HP) عهدة شخصية لا يجوز مشاركتها مع أي طرف خارجي، ويُعد التوقيع الرقمي أدناه إقراراً رسمياً ملزماً بجميع بنود هذا الميثاق وتحديثاته.</p>
         </div>
       </div>
+
       <div class="pledge-signature-area">
-        <label>ارسم توقيعك هنا للموافقة (يُعتمد قانونياً):</label>
-        <canvas id="signature-pad" width="500" height="180" class="signature-canvas"></canvas>
+        <label for="signature-pad">ارسم توقيعك الشخصي الحي داخل المربع (يُحفظ في ملفك القانوني):</label>
+        <canvas id="signature-pad" width="560" height="180" class="signature-canvas"></canvas>
         <div class="signature-actions">
           <button type="button" id="clear-signature-btn" class="btn-clear-sig">
-            <span class="material-symbols-rounded">ink_eraser</span> مسح وإعادة الرسم
+            <span class="material-symbols-rounded" translate="no">ink_eraser</span>
+            <span>مسح وإعادة الرسم</span>
           </button>
           <button type="button" id="submit-pledge-btn" class="btn-primary">
-            <span class="material-symbols-rounded">verified</span> أوافق وأتعهد بالالتزام
+            <span class="material-symbols-rounded" translate="no">verified</span>
+            <span>أوافق وأتعهد بالالتزام</span>
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ==================== 2. الهيدر وشريط التنقل ==================== -->
+  <!-- =====================================================================
+       2. الهيدر الرسمي لغرفة الأخبار وشريط التنقل الموحد
+       ===================================================================== -->
   <header class="newsroom-header">
     <div class="header-brand">
       <span class="aj-crimson-pillar"></span>
       <h1>غرفة الأخبار</h1>
+      <span class="brand-sub-pill">حُجرية بريس</span>
     </div>
-    <nav class="header-nav" id="main-admin-nav">
+
+    <nav class="header-nav" id="main-admin-nav" aria-label="التنقل في غرفة الأخبار">
       <button type="button" class="nav-btn active" data-target-view="view-dashboard">
-        <span class="material-symbols-rounded">space_dashboard</span>
-        <span class="nav-label">لوحتي</span>
+        <span class="material-symbols-rounded" translate="no">space_dashboard</span>
+        <span class="nav-label">غرفة الأخبار</span>
       </button>
+
       <button type="button" class="nav-btn" data-target-view="view-write-studio">
-        <span class="material-symbols-rounded">edit_document</span>
+        <span class="material-symbols-rounded" translate="no">edit_document</span>
         <span class="nav-label">صياغة خبر</span>
       </button>
-      <!-- زر المراجعات يظهر للأدمن فقط عبر JS -->
+
+      <!-- يظهر للأدمن فقط دون إشعار الكاتب العادي بنقص الصلاحيات -->
       <button type="button" id="nav-reviews-btn" class="nav-btn hidden" data-target-view="view-reviews">
-        <span class="material-symbols-rounded">rate_review</span>
+        <span class="material-symbols-rounded" translate="no">rate_review</span>
         <span class="nav-label">المراجعات <span id="reviews-badge" class="nav-badge hidden">0</span></span>
       </button>
-      <!-- زر الكادر يظهر للأدمن فقط عبر JS -->
+
+      <!-- يظهر للأدمن فقط -->
       <button type="button" id="nav-staff-btn" class="nav-btn hidden" data-target-view="view-staff">
-        <span class="material-symbols-rounded">groups</span>
+        <span class="material-symbols-rounded" translate="no">groups</span>
         <span class="nav-label">الكادر</span>
       </button>
+
       <button type="button" class="nav-btn" data-target-view="view-profile">
-        <span class="material-symbols-rounded">badge</span>
+        <span class="material-symbols-rounded" translate="no">badge</span>
         <span class="nav-label">ملفي والهوية</span>
+      </button>
+
+      <!-- يظهر للأدمن فقط -->
+      <button type="button" id="nav-settings-btn" class="nav-btn hidden" data-target-view="view-settings">
+        <span class="material-symbols-rounded" translate="no">settings</span>
+        <span class="nav-label">الإعدادات والميثاق</span>
+      </button>
+
+      <button type="button" id="nr-logout-btn" class="nav-btn" title="تسجيل الخروج">
+        <span class="material-symbols-rounded" style="color:var(--brand-red);" translate="no">logout</span>
+        <span class="nav-label">خروج</span>
       </button>
     </nav>
   </header>
 
-  <!-- ==================== 3. مساحة العمل الرئيسية ==================== -->
+  <!-- =====================================================================
+       3. مساحة العمل الرئيسية لغرفة الأخبار
+       ===================================================================== -->
   <main class="newsroom-workspace">
-    
-    <!-- (أ) اللوحة الرئيسية (لوحتي) -->
-    <section id="view-dashboard" class="nr-view active">
+
+    <!-- شريط تنبيه تحديث الميثاق غير المعطل للعمل -->
+    <div id="charter-update-banner" class="pledge-Banner-notice hidden">
+      <div class="banner-notice-text">
+        <span class="material-symbols-rounded" style="color:var(--brand-red);" translate="no">gavel</span>
+        <span id="charter-banner-msg">تم تحديث ميثاق الشرف الصحفي للمنصة. يرجى قراءته والتوقيع عليه (عملك ونشرك مستمر دون توقف).</span>
+      </div>
+      <button type="button" id="open-charter-from-banner-btn" class="btn-primary btn-compact">
+        قراءة وتوقيع التحديث
+      </button>
+    </div>
+
+    <!-- =================================================================
+         (أ) اللوحة الرئيسية لغرفة الأخبار (الإحصائيات ومواد الكاتب)
+         ================================================================= -->
+    <section id="view-dashboard" class="nr-view">
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon"><span class="material-symbols-rounded">publish</span></div>
+          <div class="stat-icon">
+            <span class="material-symbols-rounded" translate="no">publish</span>
+          </div>
           <div class="stat-info">
-            <h3>أخباري المنشورة</h3>
+            <h3>الأخبار المنشورة</h3>
             <strong id="stat-published">0</strong>
           </div>
         </div>
+
         <div class="stat-card">
-          <div class="stat-icon" style="color:#ca8a04; background:#fef08a;"><span class="material-symbols-rounded">hourglass_top</span></div>
+          <div class="stat-icon stat-icon-amber">
+            <span class="material-symbols-rounded" translate="no">hourglass_top</span>
+          </div>
           <div class="stat-info">
-            <h3>قيد المراجعة</h3>
+            <h3>بانتظار الاعتماد</h3>
             <strong id="stat-pending">0</strong>
           </div>
         </div>
+
         <div class="stat-card">
-          <div class="stat-icon" style="color:#475569; background:#e2e8f0;"><span class="material-symbols-rounded">draft</span></div>
+          <div class="stat-icon stat-icon-slate">
+            <span class="material-symbols-rounded" translate="no">draft</span>
+          </div>
           <div class="stat-info">
-            <h3>المسودات المحفوظة</h3>
+            <h3>المسودات المؤقتة</h3>
             <strong id="stat-drafts">0</strong>
           </div>
         </div>
       </div>
-      
-      <div class="aj-block-header" style="margin-top: 30px;">
+
+      <div class="aj-block-header" style="margin-top: 28px;">
         <span class="aj-crimson-pillar"></span>
-        <h2>أحدث موادي الصحفية</h2>
+        <h2>الأخبار والتقارير المسجلة</h2>
       </div>
-      <!-- سيتم تفريغ هذه الحاوية وتعبئتها بواسطة JS، وهذا الكود المبدئي يمنع الانهيار البصري -->
+
       <div id="author-articles-list" class="articles-list-container">
         <div class="empty-state-box">
-          <span class="material-symbols-rounded">article</span>
-          <p>لم تقم بكتابة أي مواد صحفية بعد.</p>
+          <span class="material-symbols-rounded" translate="no">article</span>
+          <p>جاري تحميل المواد الصحفية...</p>
         </div>
       </div>
     </section>
 
-    <!-- (ب) استديو صياغة الأخبار (المرحلي) -->
+    <!-- =================================================================
+         (ب) استديو صياغة الأخبار المرحلي في صفحة كاملة (3 مراحل مع حفظ تلقائي)
+         ================================================================= -->
     <section id="view-write-studio" class="nr-view hidden">
       <div class="studio-wrapper">
-        <!-- شريط التقدم -->
+
+        <!-- شريط مراحل صياغة الخبر -->
         <div class="studio-progress">
           <div class="step-marker active" id="marker-step-1">
             <span class="step-num">1</span>
-            <span class="step-title">الأساسيات</span>
+            <span class="step-title">العنوان والملخص</span>
           </div>
           <div class="step-line"></div>
           <div class="step-marker" id="marker-step-2">
             <span class="step-num">2</span>
-            <span class="step-title">الوسائط</span>
+            <span class="step-title">الأقسام والوسائط</span>
           </div>
           <div class="step-line"></div>
           <div class="step-marker" id="marker-step-3">
             <span class="step-num">3</span>
-            <span class="step-title">صياغة الخبر</span>
+            <span class="step-title">غرفة التحرير الكاملة</span>
           </div>
         </div>
 
         <form id="article-studio-form">
-          <!-- الخطوة 1: الأساسيات -->
-          <div class="studio-step active" id="studio-step-1">
+          <!-- المرحلة 1: العنوان والملخص وأولوية الظهور -->
+          <div class="studio-step" id="studio-step-1">
             <div class="form-group">
-              <label for="post-title">العنوان الرئيسي للخبر <span class="char-count">(أقصى حد 110 حرف)</span></label>
-              <input type="text" id="post-title" class="form-input" required maxlength="110" placeholder="اكتب عنواناً صحفياً جذاباً ومختصراً...">
+              <label for="post-title">العنوان الرئيسي للخبر <span class="char-count">(بحد أقصى 110 أحرف)</span></label>
+              <input type="text" id="post-title" class="form-input" required maxlength="110" placeholder="اكتب عنواناً صحفياً قوياً وواضحاً...">
             </div>
+
             <div class="form-group">
-              <label for="post-summary">الملخص الإخباري (يظهر في محركات البحث وبداية الخبر)</label>
-              <textarea id="post-summary" class="form-textarea" rows="4" required placeholder="اكتب ملخصاً يعطي زبدة الخبر للقارئ السريع..."></textarea>
+              <label for="post-summary">الموجز الإخباري (الزبدة — يظهر في محركات البحث ومقدمة التقرير)</label>
+              <textarea id="post-summary" class="form-textarea" rows="4" required placeholder="اكتب ملخصاً مركزاً يضع القارئ في صورة الحدث..."></textarea>
             </div>
+
+            <div id="post-flags-row" class="form-group">
+              <label>نوع المادة الصحفية وأولوية الظهور</label>
+              <div class="studio-flags-box">
+                <label class="flag-check-label">
+                  <input type="checkbox" id="post-is-breaking">
+                  <span>خبر عاجل (شريط العاجل)</span>
+                </label>
+                <label class="flag-check-label">
+                  <input type="checkbox" id="post-is-featured">
+                  <span>تغطية رئيسية (الواجهة الكبرى)</span>
+                </label>
+                <label class="flag-check-label">
+                  <input type="checkbox" id="post-is-quick">
+                  <span>موجز النبض السريع</span>
+                </label>
+              </div>
+            </div>
+
             <div class="step-actions justify-end">
               <button type="button" class="btn-primary btn-next-step" data-next="2">
-                التالي: الوسائط <span class="material-symbols-rounded">arrow_back</span>
+                <span>التالي: الأقسام والوسائط</span>
+                <span class="material-symbols-rounded" translate="no">arrow_back</span>
               </button>
             </div>
           </div>
 
-          <!-- الخطوة 2: الوسائط والتصنيف -->
+          <!-- المرحلة 2: الأقسام والوسائط والوسوم -->
           <div class="studio-step hidden" id="studio-step-2">
             <div class="form-row-2">
               <div class="form-group">
                 <label for="post-category">القسم الرئيسي</label>
                 <select id="post-category" class="form-select" required>
-                  <option value="" disabled selected>اختر القسم...</option>
+                  <option value="" disabled selected>اختر القسم الرئيسي...</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="post-subcategory">التصنيف الفرعي (اختياري)</label>
+                <label for="post-subcategory">التصنيف الفرعي</label>
                 <select id="post-subcategory" class="form-select">
                   <option value="">بدون تصنيف فرعي</option>
                 </select>
               </div>
             </div>
+
             <div class="form-group">
-              <label for="post-main-image">الصورة البارزة للخبر</label>
+              <label for="post-main-image">رفع الصورة البارزة للخبر (تُضغط تلقائياً لأعلى سرعة)</label>
               <input type="file" id="post-main-image" class="form-file-input" accept="image/*">
             </div>
+
             <div class="form-group">
-              <label for="post-tags">الوسوم (هاشتاجات - تُفصل بمسافة، أقصى حد 3)</label>
-              <input type="text" id="post-tags" class="form-input" placeholder="مثال: #اليمن #الرياض #اقتصاد">
+              <label for="post-image-url-input">أو ضع رابط صورة مباشر (اختياري إذا لم ترفع ملفاً)</label>
+              <input type="url" id="post-image-url-input" class="form-input" placeholder="https://..." dir="ltr">
+              <div id="studio-main-img-preview" class="hidden" style="margin-top:10px;"></div>
             </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="post-video-url">رابط فيديو (يوتيوب / Shorts / MP4 — اختياري)</label>
+                <input type="url" id="post-video-url" class="form-input" placeholder="https://www.youtube.com/watch?v=..." dir="ltr">
+              </div>
+              <div class="form-group">
+                <label for="post-video-type">نمط عرض الفيديو</label>
+                <select id="post-video-type" class="form-select">
+                  <option value="none">بدون فيديو</option>
+                  <option value="standard">فيديو عريض (16:9)</option>
+                  <option value="short_vertical">فيديو قصير عمودي (9:16 Reels/Shorts)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="post-tags">الوسوم (هاشتاجات — تفصل بمسافة، بحد أقصى 3 وسوم)</label>
+              <input type="text" id="post-tags" class="form-input" placeholder="#اليمن #السعودية #الحجرية_بريس">
+            </div>
+
             <div class="step-actions split">
               <button type="button" class="btn-secondary btn-prev-step" data-prev="1">
-                <span class="material-symbols-rounded">arrow_forward</span> السابق
+                <span class="material-symbols-rounded" translate="no">arrow_forward</span>
+                <span>السابق</span>
               </button>
               <button type="button" class="btn-primary btn-next-step" data-next="3">
-                التالي: صياغة الخبر <span class="material-symbols-rounded">arrow_back</span>
+                <span>التالي: غرفة التحرير الكاملة</span>
+                <span class="material-symbols-rounded" translate="no">arrow_back</span>
               </button>
             </div>
           </div>
 
-          <!-- الخطوة 3: صياغة الخبر (المحرر الواسع) -->
+          <!-- المرحلة 3: غرفة التحرير الواسعة وصياغة المقال -->
           <div class="studio-step hidden" id="studio-step-3">
-            <div class="editor-toolbar">
-              <button type="button" class="toolbar-btn" title="نص عريض" data-command="bold">
-                <span class="material-symbols-rounded">format_bold</span>
+            <div class="editor-toolbar" role="toolbar" aria-label="أدوات تنسيق المقال">
+              <button type="button" class="toolbar-btn" title="خط عريض" data-command="bold">
+                <span class="material-symbols-rounded" translate="no">format_bold</span>
               </button>
-              <button type="button" class="toolbar-btn" title="عنوان فرعي (H2)" data-command="formatBlock" data-value="H2">
-                <span class="material-symbols-rounded">title</span>
+              <button type="button" class="toolbar-btn" title="عنوان فرعي كبير (H2)" data-command="formatBlock" data-value="H2">
+                <span class="material-symbols-rounded" translate="no">title</span>
               </button>
-              <button type="button" class="toolbar-btn" title="اقتباس صحفي" data-command="formatBlock" data-value="BLOCKQUOTE">
-                <span class="material-symbols-rounded">format_quote</span>
+              <button type="button" class="toolbar-btn" title="عنوان فرعي متوسط (H3)" data-command="formatBlock" data-value="H3">
+                <span class="material-symbols-rounded" translate="no">format_size</span>
+              </button>
+              <button type="button" class="toolbar-btn" title="اقتباس صحفي بارز" data-command="formatBlock" data-value="BLOCKQUOTE">
+                <span class="material-symbols-rounded" translate="no">format_quote</span>
+              </button>
+              <button type="button" class="toolbar-btn" title="قائمة نقطية" data-command="insertUnorderedList">
+                <span class="material-symbols-rounded" translate="no">format_list_bulleted</span>
               </button>
               <div class="toolbar-divider"></div>
-              <button type="button" class="toolbar-btn" title="إدراج صورة بين الفقرات" id="insert-inline-img-btn">
-                <span class="material-symbols-rounded">add_photo_alternate</span>
+              <button type="button" class="toolbar-btn" title="إدراج صورة بين الفقرات مع وصف" id="insert-inline-img-btn">
+                <span class="material-symbols-rounded" translate="no">add_photo_alternate</span>
               </button>
-              <button type="button" class="toolbar-btn" title="إضافة رابط" id="insert-link-btn">
-                <span class="material-symbols-rounded">link</span>
+              <button type="button" class="toolbar-btn" title="إدراج رابط نصي" id="insert-link-btn">
+                <span class="material-symbols-rounded" translate="no">link</span>
               </button>
             </div>
-            <div id="rich-text-editor" class="rich-editor" contenteditable="true" placeholder="ابدأ صياغة تفاصيل الخبر هنا بحرية تامة..."></div>
-            
-            <div class="step-actions split" style="margin-top:20px;">
+
+            <div id="rich-text-editor" class="rich-editor" contenteditable="true" placeholder="اكتب تفاصيل التقرير أو المقال الصحفي هنا في مساحة واسعة ومريحة..."></div>
+
+            <div class="step-actions split" style="margin-top:22px;">
               <button type="button" class="btn-secondary btn-prev-step" data-prev="2">
-                <span class="material-symbols-rounded">arrow_forward</span> السابق
+                <span class="material-symbols-rounded" translate="no">arrow_forward</span>
+                <span>السابق</span>
               </button>
               <div class="save-actions">
-                <span id="auto-save-indicator" class="auto-save-text"></span>
-                <button type="button" id="save-draft-btn" class="btn-secondary">حفظ كمسودة</button>
+                <span id="auto-save-indicator" class="auto-save-text">الحفظ التلقائي نشط</span>
+                <button type="button" id="save-draft-btn" class="btn-secondary">
+                  <span class="material-symbols-rounded" translate="no">save</span>
+                  <span>حفظ كمسودة</span>
+                </button>
                 <button type="button" id="publish-article-btn" class="btn-primary">
-                  <span class="material-symbols-rounded">send</span> إرسال / نشر
+                  <span class="material-symbols-rounded" translate="no">send</span>
+                  <span>اعتماد ونشر الخبر</span>
                 </button>
               </div>
             </div>
           </div>
         </form>
+
       </div>
     </section>
 
-    <!-- (ج) واجهة المراجعات (للأدمن فقط) -->
+    <!-- =================================================================
+         (ج) مركز المراجعات الموحد للإدارة (منشورات • توقيعات • توثيقات)
+         ================================================================= -->
     <section id="view-reviews" class="nr-view hidden">
       <div class="admin-tabs">
-        <button type="button" class="admin-tab-btn active" data-tab-target="rev-posts">📝 مراجعة المنشورات</button>
-        <button type="button" class="admin-tab-btn" data-tab-target="rev-sigs">✍️ التوقيعات والميثاق</button>
-        <button type="button" class="admin-tab-btn" data-tab-target="rev-kyc">🛡️ طلبات التوثيق (KYC)</button>
+        <button type="button" class="admin-tab-btn active" data-tab-target="rev-posts">
+          <span class="material-symbols-rounded" translate="no">fact_check</span>
+          <span>مراجعة المنشورات</span>
+        </button>
+        <button type="button" class="admin-tab-btn" data-tab-target="rev-sigs">
+          <span class="material-symbols-rounded" translate="no">draw</span>
+          <span>مراجعة التوقيعات والميثاق</span>
+        </button>
+        <button type="button" class="admin-tab-btn" data-tab-target="rev-kyc">
+          <span class="material-symbols-rounded" translate="no">verified_user</span>
+          <span>مراجعة التوثيقات (KYC)</span>
+        </button>
       </div>
-      
-      <div class="admin-tab-content active" id="rev-posts">
-        <div class="empty-state-box"><p>لا توجد منشورات بانتظار المراجعة.</p></div>
+
+      <div class="admin-tab-content" id="rev-posts">
+        <div class="empty-state-box"><p>لا توجد منشورات معلقة بانتظار المراجعة.</p></div>
       </div>
+
       <div class="admin-tab-content hidden" id="rev-sigs">
         <div class="empty-state-box"><p>لا توجد توقيعات جديدة بانتظار الاعتماد.</p></div>
       </div>
+
       <div class="admin-tab-content hidden" id="rev-kyc">
         <div class="empty-state-box"><p>لا توجد طلبات توثيق هويات معلقة.</p></div>
       </div>
     </section>
 
-    <!-- (د) الكادر والبحث الذكي -->
+    <!-- =================================================================
+         (د) سجل الكادر الصحفي والبحث الذكي بالهوية الصحفية (HP#####)
+         ================================================================= -->
     <section id="view-staff" class="nr-view hidden">
       <div class="aj-block-header">
         <span class="aj-crimson-pillar"></span>
-        <h2>سجل الكادر الصحفي</h2>
+        <h2>سجل الكادر الصحفي والهويات المعتمدة</h2>
+        <button type="button" id="open-add-staff-modal-btn" class="btn-primary btn-compact" style="margin-right:auto;">
+          <span class="material-symbols-rounded" translate="no">person_add</span>
+          <span>إضافة صحفي وتوليد هوية HP</span>
+        </button>
       </div>
+
       <div class="search-box">
-        <span class="material-symbols-rounded">search</span>
-        <input type="text" id="staff-search-input" class="form-input" placeholder="ابحث بالاسم أو الهوية الصحفية الثابتة (مثال: HP10042)...">
+        <span class="material-symbols-rounded" translate="no">manage_search</span>
+        <input type="text" id="staff-search-input" class="form-input" placeholder="ابحث فوراً بالهوية الصحفية (مثال: HP10042) أو الاسم أو رقم الجوال...">
       </div>
-      <div id="staff-grid" class="staff-grid-container">
-        <!-- ستضاف كروت الموظفين هنا عبر JS -->
-      </div>
+
+      <div id="staff-grid" class="staff-grid-container"></div>
     </section>
 
-    <!-- (هـ) الملف الشخصي والهوية الصحفية (Dossier & KYC) -->
+    <!-- =================================================================
+         (هـ) ملفي الشخصي والهوية الصحفية الثابتة ونموذج التوثيق (KYC)
+         ================================================================= -->
     <section id="view-profile" class="nr-view hidden">
       <div class="profile-layout">
-        <!-- كارت الهوية السريعة -->
+
+        <!-- بطاقة الهوية الصحفية الثابتة -->
         <div class="profile-id-card">
           <div class="id-card-header">
-            <span class="material-symbols-rounded">badge</span>
-            <span>الهوية الصحفية</span>
+            <span class="material-symbols-rounded" translate="no">badge</span>
+            <span>بطاقة الهوية الصحفية</span>
           </div>
           <div class="id-card-body">
-            <img id="my-profile-avatar" src="" alt="صورتي" class="profile-avatar-large">
+            <img id="my-profile-avatar" src="" alt="الصورة الشخصية" class="profile-avatar-large">
             <h2 id="my-profile-name">اسم الصحفي</h2>
             <div class="press-id-box">
-              <span>المعرف الثابت:</span>
-              <strong id="my-press-id">HP00000</strong>
+              <span>رقم الهوية الصحفية الثابت (للدخول والمرجعية):</span>
+              <strong id="my-press-id" dir="ltr">HP10001</strong>
             </div>
             <div id="my-verification-badge" class="verification-status unverified">غير موثق</div>
+            <div id="my-auto-age-badge" class="auto-age-chip">العمر: يُحسب تلقائياً من تاريخ الميلاد</div>
           </div>
         </div>
 
-        <!-- نموذج استكمال البيانات وتوثيق الهوية -->
+        <!-- استمارة التواصل الرسمي وتوثيق الهوية والشارة الزرقاء -->
         <div class="profile-details-form">
           <div class="aj-block-header">
             <span class="aj-crimson-pillar"></span>
-            <h2>بيانات التواصل والتوثيق الرسمي (KYC)</h2>
+            <h2>بيانات التواصل المباشر واستمارة توثيق الهوية (KYC)</h2>
           </div>
-          
+
           <form id="kyc-form">
             <div class="form-row-2">
               <div class="form-group">
-                <label for="kyc-email">البريد الإلكتروني (للتواصل الإداري)</label>
-                <input type="email" id="kyc-email" class="form-input" placeholder="example@email.com">
+                <label for="kyc-email">البريد الإلكتروني للتواصل (اختياري)</label>
+                <input type="email" id="kyc-email" class="form-input" dir="ltr" placeholder="name@example.com">
               </div>
               <div class="form-group">
-                <label for="kyc-whatsapp">رقم الوتساب (مع رمز الدولة)</label>
-                <input type="tel" id="kyc-whatsapp" class="form-input" placeholder="+967...">
+                <label for="kyc-whatsapp">رقم الجوال المرتبط بالواتساب (مع رمز الدولة)</label>
+                <input type="tel" id="kyc-whatsapp" class="form-input" dir="ltr" placeholder="+9665... / +9677...">
               </div>
             </div>
 
-            <div class="aj-block-header" style="margin-top:20px;">
-              <h3 style="font-size:1rem;">الوثائق الرسمية لطلب الشارة الزرقاء</h3>
-            </div>
-
-            <div class="form-row-2">
-              <div class="form-group">
-                <label for="kyc-legal-name">الاسم الرباعي (مطابق للهوية)</label>
-                <input type="text" id="kyc-legal-name" class="form-input" placeholder="الاسم الكامل...">
-              </div>
-              <div class="form-group">
-                <label for="kyc-doc-number">رقم الهوية / الجواز</label>
-                <input type="text" id="kyc-doc-number" class="form-input" placeholder="رقم الوثيقة...">
-              </div>
+            <div class="aj-block-header" style="margin-top:22px;">
+              <span class="aj-crimson-pillar"></span>
+              <h3>بيانات الوثيقة الرسمية (مرتبطة بالتوقيع على ميثاق الشرف والشارة الزرقاء)</h3>
             </div>
 
             <div class="form-row-2">
               <div class="form-group">
-                <label for="kyc-doc-type">نوع الوثيقة</label>
+                <label for="kyc-legal-name">الاسم الكامل (كما هو مدون في الهوية أو الجواز)</label>
+                <input type="text" id="kyc-legal-name" class="form-input" placeholder="الاسم الثلاثي أو الرباعي المطابق للوثيقة...">
+              </div>
+              <div class="form-group">
+                <label for="kyc-doc-number">رقم الهوية الوطنية / رقم جواز السفر</label>
+                <input type="text" id="kyc-doc-number" class="form-input" dir="ltr" placeholder="رقم الوثيقة الرسمية...">
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="kyc-doc-type">نوع الوثيقة الرسمية</label>
                 <select id="kyc-doc-type" class="form-select">
-                  <option value="id_card">بطاقة شخصية</option>
-                  <option value="passport">جواز سفر</option>
+                  <option value="id_card">بطاقة هوية شخصية (وجه وخلف)</option>
+                  <option value="passport">جواز سفر (صفحة البيانات)</option>
                 </select>
               </div>
               <div class="form-group">
-                <label for="kyc-dob">تاريخ الميلاد</label>
+                <label for="kyc-dob">تاريخ الميلاد (من واقع الوثيقة)</label>
                 <input type="date" id="kyc-dob" class="form-input">
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="kyc-issue-date">تاريخ إصدار الوثيقة</label>
+                <input type="date" id="kyc-issue-date" class="form-input">
+              </div>
+              <div class="form-group">
+                <label>العمر الفعلي (يُحسب ويتحدث تلقائياً مع الزمن)</label>
+                <div id="kyc-auto-age-display" class="auto-age-box">
+                  أدخل تاريخ الميلاد لحساب العمر تلقائياً
+                </div>
               </div>
             </div>
 
             <div class="uploads-grid">
               <div class="form-group">
-                <label>صورة الهوية (الوجه الأمامي)</label>
+                <label for="kyc-doc-front">صورة وجه الهوية (أو صفحة الجواز)</label>
                 <input type="file" id="kyc-doc-front" class="form-file-input" accept="image/*">
               </div>
               <div class="form-group">
-                <label>صورة الهوية (الوجه الخلفي)</label>
+                <label for="kyc-doc-back">صورة ظهر الهوية (في حال البطاقة)</label>
                 <input type="file" id="kyc-doc-back" class="form-file-input" accept="image/*">
               </div>
               <div class="form-group">
-                <label>صورة سيلفي (بوجه واضح للتحقق)</label>
+                <label for="kyc-selfie">صورة شخصية سيلفي واضحة للتحقق</label>
                 <input type="file" id="kyc-selfie" class="form-file-input" accept="image/*">
               </div>
             </div>
 
-            <div class="step-actions" style="margin-top:20px;">
+            <div class="step-actions justify-end" style="margin-top:20px;">
               <button type="submit" id="submit-kyc-btn" class="btn-primary">
-                <span class="material-symbols-rounded">verified_user</span> إرسال طلب التوثيق للإدارة
+                <span class="material-symbols-rounded" translate="no">verified_user</span>
+                <span>حفظ البيانات وإرسال طلب التوثيق للإدارة</span>
               </button>
             </div>
           </form>
         </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================
+         (و) إعدادات المنصة وإدارة نص وإصدار ميثاق الشرف الصحفي (للأدمن)
+         ================================================================= -->
+    <section id="view-settings" class="nr-view hidden">
+      <div class="studio-wrapper">
+        <div class="aj-block-header">
+          <span class="aj-crimson-pillar"></span>
+          <h2>إعدادات المنصة وإدارة ميثاق الشرف الصحفي</h2>
+        </div>
+
+        <form id="platform-settings-form">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="set-site-name">اسم المنصة الإخبارية</label>
+              <input type="text" id="set-site-name" class="form-input" placeholder="حُجرية بريس">
+            </div>
+            <div class="form-group">
+              <label for="set-logo-url">رابط الشعار الرسمي (PNG مفرغ)</label>
+              <input type="url" id="set-logo-url" class="form-input" dir="ltr" placeholder="https://...">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="set-site-desc">الوصف التعريفي للمنصة (SEO Description)</label>
+            <textarea id="set-site-desc" class="form-textarea" rows="2"></textarea>
+          </div>
+
+          <div class="aj-block-header" style="margin-top:28px;">
+            <span class="aj-crimson-pillar"></span>
+            <h3>نص ميثاق الشرف الصحفي (الإصدار الحالي: <span id="current-charter-ver-label">1</span>)</h3>
+          </div>
+          <p class="settings-hint-text">
+            يمكنك تعديل بنود ميثاق الشرف الصحفي في الصندوق أدناه في أي وقت. عند تفعيل خيار (إشعار جميع الكتّاب بالتحديث)، سيظهر تنبيه لكافة الصحفيين للتوقيع على النسخة المحدثة لمرة واحدة دون أن يتعطل نشرهم للأخبار العاجلة.
+          </p>
+
+          <div class="form-group">
+            <textarea id="set-charter-html" class="form-textarea" rows="8" placeholder="اكتب بنود ميثاق الشرف الصحفي هنا..."></textarea>
+          </div>
+
+          <div class="charter-bump-box">
+            <label class="flag-check-label" style="color:var(--brand-red);">
+              <input type="checkbox" id="bump-charter-version-chk">
+              <strong>تحديث إصدار الميثاق وإرسال تنبيه توقيع جديد لكافة الصحفيين في الكادر</strong>
+            </label>
+          </div>
+
+          <div class="step-actions justify-end">
+            <button type="submit" class="btn-primary">
+              <span class="material-symbols-rounded" translate="no">save</span>
+              <span>حفظ الإعدادات والميثاق</span>
+            </button>
+          </div>
+        </form>
       </div>
     </section>
 
   </main>
 
   <!-- إشعار التفاعل السريع (Toast) -->
-  <div id="admin-toast" class="admin-toast hidden"></div>
-  
+  <div id="admin-toast" class="admin-toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- ربط ذكي بالمحرك البرمجي (يعمل تلقائياً سواء سمّيت ملف الجافاسكريبت admin-app.js أو app.js) -->
   <script type="module" src="./admin-app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
