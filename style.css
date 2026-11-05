@@ -1,8 +1,8 @@
 /* ==========================================================================
-   غرفة الأخبار (Newsroom) — حُجرية بريس (Hujariya Press)
-   ملف المظهر الكامل والمصحح 100% للجوال والشاشات الكبيرة (style.css)
-   - إصلاح جذري لشريط التنقل السفلي في الجوال ومنع اقتطاع البطاقات أفقياً
-   - متغيرات لونية ديناميكية تدعم تغيير الهوية اللونية من غرفة التحكم مستقبلاً
+   غرفة الأخبار (Newsroom v6.0) — حُجرية بريس (Hujariya Press)
+   الهوية التحريرية بأسلوب الجزيرة + اللمسة الزجاجية (Glassmorphism)
+   - تصميم مدمج، واسع، وسريع الاستجابة مع مؤشرات تحميل تفاعلية للأزرار
+   - متغيرات لونية ديناميكية تتحدث فوراً من غرفة التحكم
    ========================================================================== */
 
 @font-face {
@@ -23,28 +23,34 @@
   --brand-primary: #b80d38;
   --brand-dark: #8e0729;
   --brand-soft: rgba(184, 13, 56, 0.08);
-  --brand-border: rgba(184, 13, 56, 0.24);
-  --brand-shadow: 0 8px 26px rgba(184, 13, 56, 0.12);
+  --brand-border: rgba(184, 13, 56, 0.22);
+  --brand-shadow: 0 12px 32px -8px rgba(184, 13, 56, 0.16);
 
-  --bg-page: #f4f6f9;
+  --bg-page: #f3f5f9;
   --bg-surface: #ffffff;
-  --bg-subtle: #eef1f6;
+  --bg-glass: rgba(255, 255, 255, 0.84);
+  --bg-subtle: #edf0f6;
 
   --text-main: #0c0d0e;
-  --text-body: #262930;
-  --text-muted: #646973;
+  --text-body: #262932;
+  --text-muted: #666c78;
 
-  --border-light: #e4e7ec;
-  --border-med: #cfd5df;
+  --border-light: #e5e8f0;
+  --border-med: #cfd5e2;
+  --border-glass: rgba(255, 255, 255, 0.65);
 
   --verified-blue: #0284c7;
   --success-green: #15803d;
   --warning-amber: #b45309;
   --danger-red: #b91c1c;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-xs: 7px;
+  --radius-sm: 11px;
+  --radius-md: 15px;
+  --radius-lg: 20px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --font-editorial: 'AlJazeeraCustom', 'Almarai', 'Alexandria', sans-serif;
 }
@@ -66,7 +72,10 @@ html {
 
 body.nr-body {
   font-family: var(--font-editorial);
-  background-color: var(--bg-page);
+  background:
+    radial-gradient(circle at 12% 8%, var(--brand-soft), transparent 34%),
+    radial-gradient(circle at 88% 90%, rgba(2, 132, 199, 0.04), transparent 36%),
+    var(--bg-page);
   color: var(--text-main);
   direction: rtl;
   min-height: 100vh;
@@ -76,7 +85,7 @@ body.nr-body {
   flex-direction: column;
   line-height: 1.65;
   overflow-x: hidden;
-  position: relative;
+  -webkit-font-smoothing: antialiased;
 }
 
 .hidden {
@@ -94,16 +103,21 @@ button, input, select, textarea {
 
 button {
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.22s var(--ease-out);
 }
 
-button:active {
-  transform: scale(0.97);
+button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+button:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
 }
 
 .nr-container {
   width: 100%;
-  max-width: 1240px;
+  max-width: 1220px;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -111,16 +125,17 @@ button:active {
 .nr-title-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
 }
 
 .aj-pillar {
-  width: 5px;
+  width: 4.5px;
   height: 22px;
-  background-color: var(--brand-primary);
-  border-radius: 3px;
+  background: linear-gradient(180deg, var(--brand-primary), var(--brand-dark));
+  border-radius: 99px;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--brand-border);
 }
 
 .nr-brand-icon {
@@ -128,7 +143,33 @@ button:active {
   flex-shrink: 0;
 }
 
-/* ==================== 1. الأزرار والحقول القياسية ==================== */
+/* ==================== 1. الأنيميشن وحالة التحميل التفاعلية للأزرار ==================== */
+@keyframes nrFadeUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes nrSpin {
+  to { transform: rotate(360deg); }
+}
+
+.nr-btn.is-loading {
+  pointer-events: none;
+  position: relative;
+}
+
+.nr-btn.is-loading::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2.2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: nrSpin 0.65s linear infinite;
+}
+
+/* ==================== 2. الأزرار، الحقول، والتبويبات المدمجة ==================== */
 .nr-btn {
   display: inline-flex;
   align-items: center;
@@ -136,7 +177,7 @@ button:active {
   gap: 7px;
   padding: 10px 18px;
   border-radius: var(--radius-sm);
-  font-size: 0.88rem;
+  font-size: 0.87rem;
   font-weight: 800;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -144,13 +185,14 @@ button:active {
 }
 
 .nr-btn-primary {
-  background-color: var(--brand-primary);
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(184, 13, 56, 0.18);
+  box-shadow: 0 4px 15px rgba(184, 13, 56, 0.22);
 }
 
-.nr-btn-primary:hover {
-  background-color: var(--brand-dark);
+.nr-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 8px 22px rgba(184, 13, 56, 0.32);
+  transform: translateY(-1px);
 }
 
 .nr-btn-secondary {
@@ -159,7 +201,7 @@ button:active {
   border-color: var(--border-med);
 }
 
-.nr-btn-secondary:hover {
+.nr-btn-secondary:hover:not(:disabled) {
   border-color: var(--brand-primary);
   color: var(--brand-primary);
   background-color: var(--brand-soft);
@@ -170,14 +212,26 @@ button:active {
   color: var(--text-body);
 }
 
-.nr-btn-ghost:hover {
+.nr-btn-ghost:hover:not(:disabled) {
   background-color: var(--brand-soft);
   color: var(--brand-primary);
 }
 
+.nr-btn-danger {
+  background-color: #fef2f2;
+  color: var(--danger-red);
+  border-color: #fecaca;
+}
+
+.nr-btn-danger:hover:not(:disabled) {
+  background-color: var(--danger-red);
+  color: #ffffff;
+}
+
 .nr-btn-sm {
   padding: 6px 12px;
-  font-size: 0.78rem;
+  font-size: 0.77rem;
+  border-radius: var(--radius-xs);
 }
 
 .nr-btn-lg {
@@ -193,7 +247,7 @@ button:active {
   background: transparent;
   border: none;
   color: var(--brand-primary);
-  font-size: 0.82rem;
+  font-size: 0.81rem;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -204,13 +258,13 @@ button:active {
 
 .nr-field {
   margin-bottom: 16px;
-  min-width: 0;
   width: 100%;
+  min-width: 0;
 }
 
 .nr-field label {
   display: block;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   font-weight: 800;
   color: var(--text-main);
   margin-bottom: 6px;
@@ -229,12 +283,12 @@ button:active {
   margin-bottom: 0;
 }
 
-.nr-char-counter {
-  font-size: 0.75rem;
+.nr-counter-pill {
+  font-size: 0.74rem;
   font-weight: 800;
   color: var(--text-muted);
-  background: var(--bg-subtle);
-  padding: 2px 8px;
+  background-color: var(--bg-subtle);
+  padding: 2px 9px;
   border-radius: 99px;
 }
 
@@ -244,26 +298,26 @@ button:active {
   width: 100%;
   max-width: 100%;
   padding: 11px 14px;
-  border: 1.5px solid var(--border-med);
+  border: 1.5px solid var(--border-light);
   border-radius: var(--radius-sm);
   background-color: #ffffff;
   color: var(--text-main);
-  font-size: 0.93rem;
+  font-size: 0.92rem;
   font-weight: 700;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.2s var(--ease-out);
 }
 
-.nr-input-lg {
-  font-size: 1.06rem;
-  font-weight: 800;
-  padding: 13px 15px;
+.nr-input-title {
+  font-size: 1.08rem;
+  font-weight: 900;
+  padding: 14px 16px;
 }
 
 .nr-input:focus,
 .nr-textarea:focus,
 .nr-select:focus {
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px var(--brand-soft);
+  box-shadow: 0 0 0 3.5px var(--brand-soft);
   outline: none;
 }
 
@@ -275,37 +329,90 @@ button:active {
 .nr-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
   width: 100%;
 }
 
-/* ==================== 2. بوابة تسجيل الدخول الآمنة ==================== */
+.nr-segmented-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  background-color: var(--bg-subtle);
+  padding: 5px;
+  border-radius: var(--radius-sm);
+}
+
+.nr-seg-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.nr-seg-tab.active {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(184, 13, 56, 0.22);
+}
+
+/* ==================== 3. بوابة تسجيل الدخول الزجاجية ==================== */
 .nr-auth-gate {
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at top right, #240811 0%, #0c0d0e 72%);
+  background: radial-gradient(circle at top right, #280813 0%, #0b0c0e 74%);
   z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.nr-auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.nr-orb-1 {
+  width: 280px;
+  height: 280px;
+  background: var(--brand-primary);
+  top: -60px;
+  right: -60px;
+}
+
+.nr-orb-2 {
+  width: 240px;
+  height: 240px;
+  background: #0284c7;
+  bottom: -60px;
+  left: -60px;
 }
 
 .nr-auth-card {
-  background-color: #ffffff;
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   width: 100%;
   max-width: 440px;
   border-radius: var(--radius-lg);
+  border: 1px solid var(--border-glass);
   border-top: 5px solid var(--brand-primary);
-  padding: 28px 22px;
+  padding: 28px 24px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  animation: nrSlideUp 0.25s ease-out;
-}
-
-@keyframes nrSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  animation: nrFadeUp 0.3s var(--ease-out);
 }
 
 .nr-auth-brand {
@@ -320,66 +427,40 @@ button:active {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
 .nr-logo-img {
-  max-height: 32px;
+  max-height: 28px;
   width: auto;
   object-fit: contain;
 }
 
 .nr-auth-titles h1 {
-  font-size: 1.18rem;
+  font-size: 1.14rem;
   font-weight: 900;
 }
 
 .nr-auth-titles p {
-  font-size: 0.78rem;
+  font-size: 0.77rem;
   color: var(--text-muted);
   font-weight: 700;
   margin-top: 2px;
 }
 
-.nr-auth-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  background-color: var(--bg-subtle);
-  padding: 5px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 18px;
+.nr-auth-form {
+  margin-top: 18px;
 }
 
-.nr-auth-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 9px 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.nr-auth-tab.active {
-  background-color: var(--brand-primary);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-.nr-input-icon-wrap {
+.nr-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.nr-input-icon-wrap > .material-symbols-rounded {
+.nr-input-icon {
   position: absolute;
   right: 12px;
   color: var(--text-muted);
@@ -387,12 +468,12 @@ button:active {
   pointer-events: none;
 }
 
-.nr-input-icon-wrap .nr-input {
+.nr-input-with-icon {
   padding-right: 40px;
   padding-left: 40px;
 }
 
-.nr-icon-action {
+.nr-input-action {
   position: absolute;
   left: 8px;
   background: transparent;
@@ -400,38 +481,26 @@ button:active {
   color: var(--text-muted);
   padding: 4px;
   display: inline-flex;
-  align-items: center;
 }
 
-.nr-icon-action:hover {
-  color: var(--brand-primary);
-}
-
-.nr-security-box {
+.nr-security-notice {
   background-color: #fff8eb;
   border: 1px solid #fde68a;
   border-right: 4px solid var(--warning-amber);
   border-radius: var(--radius-sm);
-  padding: 14px;
+  padding: 13px;
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
-.nr-security-box .material-symbols-rounded {
+.nr-security-notice .material-symbols-rounded {
   color: var(--warning-amber);
-  font-size: 24px;
-  flex-shrink: 0;
+  font-size: 22px;
 }
 
-.nr-security-box strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text-main);
-}
-
-.nr-bound-user-banner {
+.nr-bound-account-chip {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -439,7 +508,7 @@ button:active {
   border: 1px solid var(--border-light);
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .nr-bound-avatar {
@@ -448,45 +517,58 @@ button:active {
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--brand-primary);
-  flex-shrink: 0;
 }
 
-.nr-bound-meta {
+.nr-bound-info {
   flex: 1;
   min-width: 0;
 }
 
-.nr-bound-meta strong {
+.nr-bound-info strong {
   display: block;
-  font-size: 0.88rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.86rem;
 }
 
-.nr-bound-meta span {
+.nr-bound-info span {
   font-family: monospace;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--brand-primary);
   font-weight: 900;
 }
 
-.nr-pin-input {
+.nr-pin-field {
   text-align: center;
   font-size: 1.45rem;
   letter-spacing: 8px;
   font-weight: 900;
 }
 
-/* ==================== 3. الهيدر والتنقل الرئيسي (بدون backdrop-filter لسلامة الجوال) ==================== */
+/* ==================== 4. الهيدر الزجاجي العلوي + الشريط السفلي الزجاجي ==================== */
 .nr-header {
-  background-color: #ffffff;
-  border-bottom: 2px solid var(--brand-primary);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   width: 100%;
+  border-bottom: 1.5px solid var(--border-light);
+}
+
+.nr-header-glass-bg {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: -1;
+}
+
+.nr-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-dark));
 }
 
 .nr-header-inner {
@@ -501,86 +583,79 @@ button:active {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
-.nr-brand-title {
-  font-size: 1.16rem;
+.nr-brand-main {
+  font-size: 1.12rem;
   font-weight: 900;
-  white-space: nowrap;
 }
 
-.nr-brand-subtitle {
-  font-size: 0.72rem;
+.nr-brand-sub {
+  font-size: 0.7rem;
   font-weight: 800;
   color: var(--text-muted);
   display: block;
   margin-right: 13px;
 }
 
-.nr-main-nav {
+.nr-desktop-nav {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.nr-nav-item {
+.nr-nav-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-body);
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   font-weight: 800;
-  white-space: nowrap;
-  position: relative;
 }
 
-.nr-nav-item .material-symbols-rounded {
+.nr-nav-btn .material-symbols-rounded {
   font-size: 20px;
   color: var(--text-muted);
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: transform 0.22s var(--ease-spring), color 0.2s ease;
 }
 
-.nr-nav-item:hover {
+.nr-nav-btn:hover {
   background-color: var(--bg-subtle);
   color: var(--brand-primary);
 }
 
-.nr-nav-item:hover .material-symbols-rounded {
-  color: var(--brand-primary);
-}
-
-.nr-nav-item.active {
+.nr-nav-btn.active {
   background-color: var(--brand-soft);
   border-color: var(--brand-border);
   color: var(--brand-primary);
 }
 
-.nr-nav-item.active .material-symbols-rounded {
+.nr-nav-btn.active .material-symbols-rounded {
   color: var(--brand-primary);
+  transform: translateY(-1px);
 }
 
-.nr-mini-counter {
+.nr-badge-pill {
   background-color: var(--brand-primary);
   color: #ffffff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   padding: 1px 6px;
   border-radius: 99px;
 }
 
-.nr-header-user {
+.nr-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.nr-user-pill {
+.nr-user-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -591,30 +666,29 @@ button:active {
   text-align: right;
 }
 
-.nr-user-pill:hover {
+.nr-user-chip:hover {
   border-color: var(--brand-primary);
 }
 
-.nr-user-avatar {
-  width: 34px;
-  height: 34px;
+.nr-user-chip-avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   border: 1.5px solid var(--brand-primary);
-  flex-shrink: 0;
 }
 
-.nr-user-name {
+.nr-user-chip-meta span {
   display: block;
   font-size: 0.78rem;
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-.nr-user-pid {
+.nr-user-chip-meta small {
   font-family: monospace;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 900;
   color: var(--brand-primary);
 }
 
@@ -628,7 +702,6 @@ button:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
 .nr-icon-btn:hover {
@@ -636,28 +709,31 @@ button:active {
   color: #ffffff;
 }
 
-/* ==================== 4. مساحة العمل، البطاقات، والمفكرة السريعة ==================== */
+.nr-mobile-bottom-nav {
+  display: none;
+}
+
+/* ==================== 5. مساحة العمل، الإحصائيات المدمجة (Bento)، والبحث الذكي ==================== */
 .nr-workspace {
   flex: 1;
-  padding-top: 20px;
-  padding-bottom: 44px;
+  padding-top: 18px;
+  padding-bottom: 48px;
   width: 100%;
   min-width: 0;
 }
 
 .nr-view {
-  width: 100%;
-  min-width: 0;
-  animation: nrSlideUp 0.2s ease-out;
+  animation: nrFadeUp 0.26s var(--ease-out);
 }
 
-.nr-alert-banner {
-  background-color: #fff1f2;
+.nr-glass-banner {
+  background: rgba(255, 241, 242, 0.92);
+  backdrop-filter: blur(10px);
   border: 1px solid #fecdd3;
   border-right: 4px solid var(--brand-primary);
   border-radius: var(--radius-md);
   padding: 12px 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -665,87 +741,103 @@ button:active {
   flex-wrap: wrap;
 }
 
-.nr-alert-amber {
-  background-color: #fffbeb;
+.nr-banner-amber {
+  background: rgba(255, 251, 235, 0.92);
   border-color: #fde68a;
   border-right-color: var(--warning-amber);
 }
 
-.nr-alert-info {
+.nr-banner-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 800;
   flex: 1;
   min-width: 200px;
 }
 
-.nr-alert-info .material-symbols-rounded {
+.nr-banner-info .material-symbols-rounded {
   color: var(--brand-primary);
-  flex-shrink: 0;
 }
 
-.nr-welcome-strip {
-  background-color: var(--bg-surface);
+.nr-hero-strip {
+  background: var(--bg-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: 18px 20px;
-  margin-bottom: 18px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
+  box-shadow: 0 4px 18px rgba(12, 13, 14, 0.03);
 }
 
-.nr-welcome-text {
-  min-width: 0;
-  flex: 1;
-}
-
-.nr-welcome-text h1 {
-  font-size: 1.2rem;
+.nr-hero-meta h1 {
+  font-size: 1.15rem;
   font-weight: 900;
 }
 
-.nr-welcome-text p {
-  font-size: 0.82rem;
+.nr-hero-meta p {
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 700;
   margin-top: 2px;
 }
 
-.nr-welcome-actions {
+.nr-hero-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.nr-stats-grid {
+/* شبكة الإحصائيات المدمجة (Bento Grid) */
+.nr-stats-bento {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
-  width: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .nr-stat-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-right: 4px solid var(--brand-primary);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(12, 13, 14, 0.025);
+  transition: transform 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out);
+}
+
+.nr-stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 3.5px;
+  background-color: var(--brand-primary);
+}
+
+.nr-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--brand-shadow);
 }
 
 .nr-stat-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
   background-color: var(--brand-soft);
   color: var(--brand-primary);
   display: flex;
@@ -758,42 +850,36 @@ button:active {
 .nr-icon-slate { background-color: #e2e8f0; color: #334155; }
 .nr-icon-blue { background-color: #e0f2fe; color: #0369a1; }
 
-.nr-stat-data {
+.nr-stat-info {
+  flex: 1;
   min-width: 0;
 }
 
-.nr-stat-data span {
+.nr-stat-info span {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 800;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.nr-stat-data strong {
-  font-size: 1.42rem;
+.nr-stat-info strong {
+  font-size: 1.35rem;
   font-weight: 900;
+  line-height: 1.2;
 }
 
-.nr-overview-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-  width: 100%;
-}
-
-.nr-panel-card {
+.nr-surface-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 20px;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 18px rgba(12, 13, 14, 0.03);
 }
 
-.nr-panel-header {
+.nr-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -804,61 +890,80 @@ button:active {
   border-bottom: 1px solid var(--border-light);
 }
 
-.nr-panel-header h2,
-.nr-panel-header h3 {
-  font-size: 1.02rem;
+.nr-card-header h2 {
+  font-size: 1.04rem;
   font-weight: 900;
 }
 
-.nr-filter-pills {
+.nr-filter-scroll {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
 }
 
-.nr-filter-pill {
-  padding: 4px 10px;
+.nr-filter-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.nr-filter-chip {
+  padding: 5px 12px;
   border-radius: 99px;
   border: 1px solid var(--border-light);
-  background: var(--bg-subtle);
+  background-color: var(--bg-subtle);
   color: var(--text-body);
   font-size: 0.75rem;
   font-weight: 800;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.nr-filter-pill.active {
-  background-color: var(--brand-primary);
+.nr-filter-chip.active {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
   border-color: var(--brand-primary);
   color: #ffffff;
 }
 
-.nr-search-bar {
+.nr-smart-search {
   position: relative;
   display: flex;
   align-items: center;
   margin-bottom: 14px;
 }
 
-.nr-search-bar .material-symbols-rounded {
+.nr-search-icon {
   position: absolute;
-  right: 12px;
-  color: var(--text-muted);
+  right: 13px;
+  color: var(--brand-primary);
   pointer-events: none;
 }
 
-.nr-search-bar .nr-input {
-  padding-right: 40px;
+.nr-search-input {
+  padding-right: 42px;
+  padding-left: 38px;
+  background-color: var(--bg-page);
 }
 
-.nr-articles-list {
+.nr-search-clear {
+  position: absolute;
+  left: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+}
+
+.nr-articles-stack {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.nr-article-item {
+.nr-article-row {
   border: 1px solid var(--border-light);
-  border-right: 4px solid var(--brand-primary);
+  border-right: 3.5px solid var(--brand-primary);
   border-radius: var(--radius-sm);
   padding: 13px 15px;
   display: flex;
@@ -867,21 +972,22 @@ button:active {
   gap: 12px;
   flex-wrap: wrap;
   background-color: #ffffff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.22s var(--ease-out);
 }
 
-.nr-article-item:hover {
+.nr-article-row:hover {
   border-color: var(--brand-border);
   box-shadow: var(--brand-shadow);
+  transform: translateY(-1px);
 }
 
-.nr-status-badge {
+.nr-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
   border-radius: 99px;
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   font-weight: 800;
 }
 
@@ -890,48 +996,60 @@ button:active {
 .st-draft { background: #e2e8f0; color: #334155; }
 .st-rejected { background: #fee2e2; color: #b91c1c; }
 
-.nr-scratchpad-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+.nr-pagination-bar {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
 }
 
-.nr-helper-text {
-  font-size: 0.82rem;
+.nr-page-indicator {
+  font-size: 0.8rem;
+  font-weight: 800;
   color: var(--text-muted);
-  font-weight: 700;
-  margin-bottom: 14px;
 }
 
-.nr-empty-box {
+.nr-empty-state {
   border: 1.5px dashed var(--border-med);
   border-radius: var(--radius-sm);
-  padding: 30px 14px;
+  padding: 30px 16px;
   text-align: center;
   color: var(--text-muted);
   font-weight: 800;
 }
 
-.nr-empty-box .material-symbols-rounded {
+.nr-empty-state .material-symbols-rounded {
   font-size: 38px;
   color: var(--brand-primary);
   opacity: 0.65;
   margin-bottom: 6px;
 }
 
-/* ==================== 5. استديو النشر المبسط بنظام التبويبات المقفلة ==================== */
-.nr-studio-shell {
+/* ==================== 6. استديو النشر المرحلي + وضع ملء الشاشة ==================== */
+.nr-studio-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  width: 100%;
-  max-width: 100%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 6px 26px rgba(12, 13, 14, 0.04);
 }
 
-.nr-studio-topbar {
-  padding: 16px 20px;
+/* وضع ملء الشاشة للتركيز أثناء الكتابة */
+.nr-studio-card.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  border-radius: 0;
+  overflow-y: auto;
+  background-color: var(--bg-page);
+}
+
+.nr-studio-header {
+  padding: 15px 20px;
+  background-color: #ffffff;
   border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
@@ -940,48 +1058,48 @@ button:active {
   flex-wrap: wrap;
 }
 
-.nr-studio-topbar h2 {
-  font-size: 1.1rem;
+.nr-studio-header h2 {
+  font-size: 1.06rem;
   font-weight: 900;
 }
 
-.nr-studio-status-bar {
+.nr-studio-top-tools {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.nr-autosave-pill {
+.nr-autosave-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   background-color: #f0fdf4;
   color: #15803d;
   border: 1px solid #bbf7d0;
-  padding: 4px 10px;
+  padding: 4px 11px;
   border-radius: 99px;
   font-size: 0.75rem;
   font-weight: 800;
 }
 
-.nr-autosave-pill .material-symbols-rounded {
+.nr-autosave-chip .material-symbols-rounded {
   font-size: 16px;
 }
 
-.nr-studio-tabs {
+/* التبويبات المرحلية الثلاثة */
+.nr-step-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   background-color: var(--bg-subtle);
   border-bottom: 1px solid var(--border-light);
-  width: 100%;
 }
 
-.nr-studio-tab {
+.nr-step-tab {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px;
+  padding: 13px 16px;
   background: transparent;
   border: none;
   border-bottom: 3px solid transparent;
@@ -991,11 +1109,11 @@ button:active {
   min-width: 0;
 }
 
-.nr-studio-tab:last-child {
+.nr-step-tab:last-child {
   border-left: none;
 }
 
-.nr-tab-step-num {
+.nr-step-badge {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -1004,28 +1122,28 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 900;
   flex-shrink: 0;
 }
 
-.nr-tab-labels {
+.nr-step-text {
   flex: 1;
   min-width: 0;
 }
 
-.nr-tab-labels strong {
+.nr-step-text strong {
   display: block;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 900;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.nr-tab-labels small {
+.nr-step-text small {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   color: var(--text-muted);
   font-weight: 700;
   white-space: nowrap;
@@ -1033,96 +1151,64 @@ button:active {
   text-overflow: ellipsis;
 }
 
-.nr-tab-status-icon {
+.nr-step-lock-icon {
   font-size: 18px;
   color: var(--text-muted);
-  flex-shrink: 0;
 }
 
-.nr-studio-tab.active {
+.nr-step-tab.active {
   background-color: #ffffff;
   border-bottom-color: var(--brand-primary);
   color: var(--brand-primary);
 }
 
-.nr-studio-tab.active .nr-tab-step-num {
+.nr-step-tab.active .nr-step-badge {
   background-color: var(--brand-primary);
   border-color: var(--brand-primary);
   color: #ffffff;
 }
 
-.nr-studio-tab.completed .nr-tab-step-num {
+.nr-step-tab.completed .nr-step-badge {
   background-color: var(--success-green);
   border-color: var(--success-green);
   color: #ffffff;
 }
 
-.nr-studio-tab.locked {
-  opacity: 0.6;
+.nr-step-tab.locked {
+  opacity: 0.58;
 }
 
 .nr-studio-body {
   padding: 24px 20px;
 }
 
-.nr-clean-stage {
-  max-width: 780px;
+.nr-focused-stage {
+  max-width: 760px;
   margin: 0 auto;
-  width: 100%;
 }
 
-.nr-toggle-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.nr-chip-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border-light);
-  background-color: var(--bg-page);
-  cursor: pointer;
-  font-size: 0.84rem;
-  font-weight: 800;
-}
-
-.nr-chip-checkbox input {
-  accent-color: var(--brand-primary);
-  width: 16px;
-  height: 16px;
-}
-
-.nr-chip-checkbox .material-symbols-rounded {
-  font-size: 18px;
-  color: var(--brand-primary);
-}
-
-.nr-info-strip {
+.nr-category-lock-banner {
   background-color: var(--brand-soft);
   border: 1px solid var(--brand-border);
   color: var(--brand-primary);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   font-weight: 800;
 }
 
-.nr-media-upload-grid {
+.nr-media-merged-box {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
 }
 
-.nr-upload-dropzone {
+.nr-upload-tile {
   border: 2px dashed var(--brand-border);
   background-color: var(--brand-soft);
   border-radius: var(--radius-sm);
@@ -1134,56 +1220,71 @@ button:active {
   text-align: center;
   cursor: pointer;
   margin-bottom: 0 !important;
+  transition: all 0.2s ease;
 }
 
-.nr-upload-dropzone .material-symbols-rounded {
+.nr-upload-tile:hover {
+  background-color: rgba(184, 13, 56, 0.13);
+}
+
+.nr-upload-tile .material-symbols-rounded {
   font-size: 30px;
   color: var(--brand-primary);
   margin-bottom: 4px;
 }
 
-.nr-upload-dropzone strong {
-  font-size: 0.84rem;
+.nr-upload-tile strong {
+  font-size: 0.82rem;
   color: var(--brand-primary);
 }
 
-.nr-upload-dropzone small {
-  font-size: 0.72rem;
+.nr-upload-tile small {
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
-.nr-img-preview-bar {
+.nr-media-preview-strip {
   margin-top: 10px;
   padding: 8px 12px;
-  background: var(--bg-page);
+  background-color: var(--bg-page);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.8rem;
+  gap: 12px;
+}
+
+.nr-media-preview-strip img {
+  width: 68px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.nr-media-preview-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nr-media-preview-info strong {
+  display: block;
+  font-size: 0.82rem;
+}
+
+.nr-media-preview-info small {
+  font-size: 0.72rem;
+  color: var(--success-green);
   font-weight: 800;
 }
 
-.nr-img-preview-bar img {
-  width: 64px;
-  height: 44px;
-  object-fit: cover;
-  border-radius: 5px;
-}
-
-.nr-img-preview-bar .nr-link-btn {
-  margin-right: auto;
-}
-
-.nr-suggested-tags {
+.nr-tags-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
 
-.nr-tag-suggestion {
+.nr-tag-chip {
   padding: 4px 11px;
   border-radius: 99px;
   border: 1px solid var(--border-light);
@@ -1193,14 +1294,14 @@ button:active {
   font-weight: 800;
 }
 
-.nr-tag-suggestion:hover {
+.nr-tag-chip:hover {
   border-color: var(--brand-primary);
   color: var(--brand-primary);
   background-color: var(--brand-soft);
 }
 
-/* التبويب الثالث: محرر المقال الكامل */
-.nr-editor-context-bar {
+/* المرحلة 3: المحرر وشريط الأولويات المدمج */
+.nr-editor-summary-bar {
   background-color: var(--bg-page);
   border: 1px solid var(--border-light);
   padding: 10px 14px;
@@ -1213,20 +1314,28 @@ button:active {
   flex-wrap: wrap;
 }
 
-.nr-context-cat {
-  background-color: var(--brand-primary);
-  color: #ffffff;
-  font-size: 0.73rem;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-left: 8px;
+.nr-editor-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.nr-word-counter {
-  font-size: 0.78rem;
+.nr-cat-badge {
+  background-color: var(--brand-primary);
+  color: #ffffff;
+  font-size: 0.72rem;
   font-weight: 800;
-  color: var(--text-muted);
+  padding: 2px 9px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.nr-editor-summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .nr-editor-toolbar {
@@ -1235,20 +1344,21 @@ button:active {
   flex-wrap: wrap;
   gap: 5px;
   padding: 9px 10px;
-  background-color: var(--bg-subtle);
+  background: rgba(237, 240, 246, 0.92);
+  backdrop-filter: blur(12px);
   border: 1.5px solid var(--border-med);
   border-bottom: none;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   position: sticky;
   top: 62px;
-  z-index: 20;
+  z-index: 25;
 }
 
 .nr-tool-btn {
   height: 35px;
   min-width: 35px;
-  padding: 0 7px;
-  border-radius: 6px;
+  padding: 0 8px;
+  border-radius: 7px;
   border: 1px solid var(--border-light);
   background-color: #ffffff;
   color: var(--text-body);
@@ -1265,13 +1375,13 @@ button:active {
   color: var(--brand-primary);
 }
 
-.nr-tool-highlight {
+.nr-tool-accent {
   background-color: var(--brand-soft);
   border-color: var(--brand-border);
   color: var(--brand-primary);
 }
 
-.nr-tool-sep {
+.nr-tool-divider {
   width: 1px;
   height: 22px;
   background-color: var(--border-med);
@@ -1279,8 +1389,8 @@ button:active {
 }
 
 .nr-rich-editor {
-  min-height: 440px;
-  padding: 22px;
+  min-height: 430px;
+  padding: 24px;
   border: 1.5px solid var(--border-med);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   background-color: #ffffff;
@@ -1312,7 +1422,7 @@ button:active {
   padding: 12px 16px;
   background: var(--brand-soft);
   border-right: 4px solid var(--brand-primary);
-  border-radius: 4px;
+  border-radius: 6px;
   font-weight: 700;
 }
 .nr-rich-editor figure,
@@ -1322,12 +1432,10 @@ button:active {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  max-width: 100%;
 }
 .nr-rich-editor img {
   max-width: 100%;
   max-height: 440px;
-  display: block;
   margin: 0 auto;
 }
 .nr-rich-editor figcaption {
@@ -1338,8 +1446,64 @@ button:active {
   border-top: 1px solid var(--border-light);
 }
 
-.nr-pane-footer {
-  margin-top: 22px;
+/* شريط الأولويات والنشر المدمج أسفل المحرر */
+.nr-merged-publish-dock {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.nr-priority-chips-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nr-dock-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.nr-prio-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border-med);
+  background-color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.nr-prio-toggle input {
+  accent-color: var(--brand-primary);
+}
+
+.nr-prio-toggle .material-symbols-rounded {
+  font-size: 17px;
+  color: var(--brand-primary);
+}
+
+.nr-publish-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nr-stage-footer {
+  margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border-light);
   display: flex;
@@ -1350,74 +1514,121 @@ button:active {
 
 .nr-footer-end { justify-content: flex-end; }
 .nr-footer-split { justify-content: space-between; }
-.nr-publish-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ==================== 6. دفتر الملاحظات الذكي ==================== */
-.nr-notes-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: 18px;
-  align-items: start;
-  width: 100%;
+/* ==================== 7. الدرج الزجاجي المنزلق لدفتر الملاحظات الذكي ==================== */
+.nr-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(12, 13, 14, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 8800;
 }
 
-.nr-notes-form-actions {
+.nr-notes-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-light);
+  z-index: 8900;
   display: flex;
+  flex-direction: column;
+  box-shadow: 16px 0 44px rgba(0, 0, 0, 0.22);
+  animation: nrFadeUp 0.24s var(--ease-out);
+}
+
+.nr-drawer-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nr-drawer-header h2 {
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.nr-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.nr-note-composer {
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-light);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 18px;
+}
+
+.nr-note-composer-actions {
+  display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.nr-notes-list {
+.nr-drawer-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 0.84rem;
+  font-weight: 900;
+  color: var(--text-muted);
+}
+
+.nr-notes-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .nr-note-card {
-  background-color: var(--bg-page);
+  background-color: #ffffff;
   border: 1px solid var(--border-light);
-  border-right: 4px solid var(--brand-primary);
+  border-right: 3.5px solid var(--brand-primary);
   border-radius: var(--radius-sm);
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .nr-note-card h3 {
-  font-size: 0.96rem;
+  font-size: 0.92rem;
   font-weight: 900;
   margin-bottom: 4px;
 }
 
 .nr-note-card p {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: var(--text-body);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   white-space: pre-line;
-  overflow-wrap: break-word;
 }
 
-.nr-note-card-footer {
+.nr-note-card-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   padding-top: 8px;
   border-top: 1px solid var(--border-light);
 }
 
-/* ==================== 7. ملفي الشخصي، الهوية الصحفية (HP)، والعمر البارز ==================== */
-.nr-profile-grid {
+/* ==================== 8. ملفي الشخصي، بطاقة الهوية (HP#####)، والتبويبات المدمجة ==================== */
+.nr-profile-layout {
   display: grid;
-  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 330px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
-  width: 100%;
-}
-
-.nr-profile-sidebar {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
 }
 
 .nr-id-card {
@@ -1425,53 +1636,46 @@ button:active {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  width: 100%;
-  max-width: 100%;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 26px rgba(12, 13, 14, 0.05);
 }
 
-.nr-id-card-top {
+.nr-id-card-header {
   background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
   color: #ffffff;
   padding: 13px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  font-size: 0.86rem;
   font-weight: 900;
-  font-size: 0.88rem;
 }
 
-.nr-id-org {
-  font-size: 0.72rem;
+.nr-id-brand-tag {
+  font-size: 0.7rem;
   opacity: 0.9;
-  letter-spacing: 0.4px;
-  direction: ltr;
 }
 
 .nr-id-card-body {
   padding: 20px 16px;
   text-align: center;
-  width: 100%;
 }
 
-.nr-avatar-upload-wrap {
+.nr-avatar-ring {
   position: relative;
-  width: 108px;
-  height: 108px;
+  width: 106px;
+  height: 106px;
   margin: 0 auto 12px;
 }
 
-.nr-profile-avatar-lg {
-  width: 108px;
-  height: 108px;
+.nr-profile-avatar {
+  width: 106px;
+  height: 106px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--brand-primary);
 }
 
-.nr-avatar-edit-btn {
+.nr-avatar-cam-btn {
   position: absolute;
   bottom: 2px;
   left: 2px;
@@ -1487,151 +1691,135 @@ button:active {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-.nr-id-name-row {
+.nr-id-name-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  flex-wrap: wrap;
 }
 
-.nr-id-name-row h2 {
-  font-size: 1.18rem;
+.nr-id-name-wrap h2 {
+  font-size: 1.15rem;
   font-weight: 900;
 }
 
-.nr-verified-blue {
+.nr-verified-badge {
   color: var(--verified-blue);
   font-size: 20px;
 }
 
-.nr-id-role {
-  font-size: 0.8rem;
+.nr-id-job {
+  font-size: 0.79rem;
   color: var(--text-muted);
   font-weight: 700;
   margin-bottom: 14px;
 }
 
-.nr-press-id-box {
+.nr-press-id-banner {
   background-color: #111317;
   color: #ffffff;
   padding: 12px 10px;
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
-  width: 100%;
 }
 
-.nr-press-id-box small {
+.nr-press-id-banner small {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: #a1a1aa;
   margin-bottom: 4px;
 }
 
-.nr-press-id-row {
+.nr-press-id-code-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.nr-press-id-row strong {
+.nr-press-id-code-row strong {
   font-family: monospace;
   font-size: 1.35rem;
   letter-spacing: 2px;
-  color: #ffffff;
 }
 
-.nr-press-id-row .nr-icon-action {
-  position: static;
+.nr-copy-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
   color: #ffffff;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* لافتة العمر المحسوب تلقائياً */
-.nr-prominent-age-banner {
+.nr-age-highlight-box {
   background-color: var(--brand-soft);
   border: 1px solid var(--brand-border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 10px;
   text-align: right;
-  width: 100%;
 }
 
-.nr-prominent-age-banner .material-symbols-rounded {
+.nr-age-highlight-box .material-symbols-rounded {
   color: var(--brand-primary);
-  font-size: 24px;
-  flex-shrink: 0;
+  font-size: 22px;
 }
 
-.nr-prominent-age-banner small {
+.nr-age-highlight-box small {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   font-weight: 700;
 }
 
-.nr-prominent-age-banner strong {
-  font-size: 0.86rem;
+.nr-age-highlight-box strong {
+  font-size: 0.85rem;
   font-weight: 900;
   color: var(--brand-primary);
-  display: block;
 }
 
-.nr-id-status-list {
+.nr-id-meta-rows {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  text-align: right;
   font-size: 0.8rem;
   border-top: 1px solid var(--border-light);
   padding-top: 12px;
-  width: 100%;
 }
 
-.nr-status-item {
+.nr-id-meta-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
-.nr-direct-contacts {
+.nr-id-contact-btns {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
-  width: 100%;
 }
 
-.nr-section-subtitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--border-light);
-  color: var(--brand-primary);
+.nr-helper-note {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  margin-bottom: 16px;
 }
 
-.nr-section-subtitle h3 {
-  font-size: 0.94rem;
-  font-weight: 900;
-  color: var(--text-main);
-}
-
-.nr-input-action-group {
+.nr-linked-input-row {
   display: flex;
   gap: 8px;
   align-items: center;
-  width: 100%;
 }
 
-.nr-direct-action-btn {
+.nr-quick-contact-btn {
   width: 42px;
   height: 42px;
   border-radius: var(--radius-sm);
@@ -1642,19 +1830,10 @@ button:active {
   flex-shrink: 0;
 }
 
-.nr-wa-link {
-  background-color: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
-}
+.nr-wa-btn { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.nr-mail-btn { background: var(--brand-soft); color: var(--brand-primary); border: 1px solid var(--brand-border); }
 
-.nr-mail-link {
-  background-color: var(--brand-soft);
-  color: var(--brand-primary);
-  border: 1px solid var(--brand-border);
-}
-
-.nr-age-calc-box {
+.nr-live-age-pill {
   min-height: 45px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
@@ -1664,26 +1843,25 @@ button:active {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   font-weight: 900;
 }
 
-.nr-kyc-uploads-grid {
+.nr-kyc-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
   gap: 12px;
-  width: 100%;
 }
 
-.nr-kyc-upload-card {
+.nr-kyc-drop-card {
   border: 1.5px dashed var(--border-med);
   border-radius: var(--radius-sm);
-  padding: 14px;
+  padding: 12px;
   background-color: var(--bg-page);
   text-align: center;
 }
 
-.nr-kyc-upload-label {
+.nr-kyc-drop-label {
   display: flex !important;
   flex-direction: column;
   align-items: center;
@@ -1692,31 +1870,31 @@ button:active {
   margin-bottom: 0 !important;
 }
 
-.nr-kyc-upload-label .material-symbols-rounded {
-  font-size: 28px;
+.nr-kyc-drop-label .material-symbols-rounded {
+  font-size: 26px;
   color: var(--brand-primary);
 }
 
-.nr-kyc-thumb {
-  margin-top: 10px;
+.nr-kyc-preview-box {
+  margin-top: 8px;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--border-light);
 }
 
-.nr-kyc-thumb img {
+.nr-kyc-preview-box img {
   width: 100%;
-  height: 105px;
+  height: 100px;
   object-fit: cover;
-  display: block;
 }
 
-/* ==================== 8. نافذة ميثاق الشرف والتوقيع الرقمي الثلاثي ==================== */
+/* ==================== 9. النوافذ الزجاجية (المعاينة الحية، الميثاق، والتأكيد الآمن) ==================== */
 .nr-modal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(12, 13, 14, 0.82);
-  backdrop-filter: blur(5px);
+  background-color: rgba(12, 13, 14, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 9500;
   display: flex;
   align-items: center;
@@ -1725,15 +1903,20 @@ button:active {
 }
 
 .nr-modal-card {
-  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.97);
   width: 100%;
-  max-width: 650px;
-  max-height: 92vh;
+  max-width: 640px;
+  max-height: 90vh;
   overflow-y: auto;
   border-radius: var(--radius-lg);
   border-top: 5px solid var(--brand-primary);
-  padding: 22px 18px;
+  padding: 22px 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  animation: nrFadeUp 0.25s var(--ease-out);
+}
+
+.nr-modal-lg {
+  max-width: 820px;
 }
 
 .nr-modal-header {
@@ -1742,57 +1925,126 @@ button:active {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .nr-modal-header h2 {
-  font-size: 1.15rem;
+  font-size: 1.08rem;
   font-weight: 900;
 }
 
-.nr-pledge-header-actions {
+.nr-modal-footer {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.nr-pill-badge {
+/* نافذة التأكيد التفاعلية الموحدة */
+.nr-confirm-card {
+  max-width: 420px;
+  text-align: center;
+  padding: 26px 22px;
+}
+
+.nr-confirm-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
   background-color: var(--brand-soft);
   color: var(--brand-primary);
-  border: 1px solid var(--brand-border);
-  padding: 4px 10px;
-  border-radius: 99px;
-  font-size: 0.75rem;
-  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
 }
 
+.nr-confirm-icon-wrap .material-symbols-rounded {
+  font-size: 30px;
+}
+
+.nr-confirm-card h3 {
+  font-size: 1.12rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.nr-confirm-card p {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.nr-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* قارئ المعاينة الحية للمقال */
+.nr-preview-reader {
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 22px;
+}
+
+.nr-preview-reader h1 {
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1.45;
+  margin: 10px 0 12px;
+}
+
+.nr-preview-summary {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-body);
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border-right: 4px solid var(--brand-primary);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.nr-preview-content {
+  font-size: 1.05rem;
+  line-height: 1.9;
+}
+
+/* عناصر ميثاق الشرف والتوقيع */
 .nr-pledge-lead {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 800;
   color: var(--text-body);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.nr-charter-scroll-box {
-  height: 165px;
+.nr-charter-box {
+  height: 160px;
   overflow-y: auto;
   background-color: var(--bg-page);
   border: 1px solid var(--border-med);
   border-radius: var(--radius-sm);
   padding: 12px;
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   line-height: 1.75;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
-.nr-charter-scroll-box h3 {
+.nr-charter-box h3 {
   color: var(--brand-primary);
   font-size: 0.92rem;
   margin: 8px 0 4px;
 }
 
-.nr-sig-slots-row {
+.nr-sig-slots {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
@@ -1800,9 +2052,9 @@ button:active {
 }
 
 .nr-sig-slot {
-  height: 58px;
+  height: 56px;
   border: 1px dashed var(--border-med);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background-color: var(--bg-page);
   display: flex;
   align-items: center;
@@ -1820,21 +2072,16 @@ button:active {
 }
 
 .nr-sig-slot img {
-  max-height: 50px;
+  max-height: 48px;
   width: auto;
-  object-fit: contain;
 }
 
-.nr-sig-pad-header {
+.nr-sig-pad-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   margin-bottom: 6px;
-}
-
-.nr-sig-pad-header label {
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   font-weight: 800;
 }
 
@@ -1846,15 +2093,14 @@ button:active {
   border-radius: var(--radius-sm);
   cursor: crosshair;
   touch-action: none;
-  margin-bottom: 14px;
 }
 
-/* ==================== 9. التذييل والتوست (Toast) ==================== */
+/* ==================== 10. التذييل والتوست (Toast) ==================== */
 .nr-footer {
   background-color: #ffffff;
   border-top: 1px solid var(--border-light);
-  padding: 16px 0;
-  font-size: 0.78rem;
+  padding: 14px 0;
+  font-size: 0.76rem;
   color: var(--text-muted);
 }
 
@@ -1873,118 +2119,147 @@ button:active {
 }
 
 .nr-footer-logo {
-  max-height: 26px;
+  max-height: 24px;
   width: auto;
 }
 
 .nr-toast {
   position: fixed;
-  bottom: 78px;
+  bottom: 76px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #0c0d0e;
+  background: rgba(12, 13, 14, 0.94);
+  backdrop-filter: blur(10px);
   color: #ffffff;
   border-right: 4px solid var(--brand-primary);
   padding: 11px 18px;
   border-radius: var(--radius-sm);
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   font-weight: 800;
-  z-index: 10000;
+  z-index: 12000;
   width: max-content;
-  max-width: calc(100vw - 32px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  max-width: calc(100vw - 28px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
 }
 
-/* ==================== 10. ضبط التجاوب الكامل مع الجوال والشاشات الصغيرة ==================== */
-@media (max-width: 960px) {
-  .nr-overview-split,
-  .nr-notes-layout,
-  .nr-profile-grid,
+/* ==================== 11. التجاوب مع الجوال والشاشات الصغيرة ==================== */
+@media (max-width: 940px) {
+  .nr-profile-layout,
   .nr-grid-2,
-  .nr-media-upload-grid {
+  .nr-media-merged-box {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 780px) {
   .nr-container {
     padding: 0 12px;
   }
 
   .nr-header-inner {
-    height: 56px;
+    height: 54px;
   }
 
-  .nr-brand-subtitle,
-  .nr-user-pill-info {
+  .nr-desktop-nav,
+  .nr-brand-sub,
+  .nr-user-chip-meta {
     display: none;
   }
 
-  .nr-user-pill {
+  .nr-user-chip {
     padding: 3px;
     border-radius: 50%;
   }
 
-  /* تثبيت شريط التنقل السفلي في أسفل الجوال بأناقة التطبيقات العالمية */
-  .nr-main-nav {
+  /* شريط الجوال السفلي الزجاجي الفاخر */
+  .nr-mobile-bottom-nav {
     position: fixed;
     bottom: 0;
     right: 0;
     left: 0;
     height: 62px;
-    background-color: #ffffff;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border-top: 1px solid var(--border-light);
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 2px;
-    padding: 4px 6px;
-    z-index: 950;
-    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.07);
+    gap: 4px;
+    padding: 5px 6px;
+    z-index: 900;
+    box-shadow: 0 -4px 20px rgba(12, 13, 14, 0.06);
   }
 
-  .nr-nav-item {
+  .nr-mob-nav-item {
+    display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
     gap: 2px;
-    padding: 4px 2px;
-    border-radius: 8px;
     border: none;
-    font-size: 0.68rem;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 10px;
+    padding: 3px 2px;
+    position: relative;
+    min-width: 0;
+  }
+
+  .nr-mob-nav-item .material-symbols-rounded {
+    font-size: 21px;
+    padding: 2px 12px;
+    border-radius: 99px;
+    transition: all 0.24s var(--ease-spring);
+  }
+
+  .nr-mob-nav-label {
+    font-size: 0.65rem;
     font-weight: 800;
+    white-space: nowrap;
   }
 
-  .nr-nav-item .material-symbols-rounded {
-    font-size: 22px;
-  }
-
-  .nr-nav-item.active {
-    background-color: var(--brand-soft);
+  .nr-mob-nav-item.active {
     color: var(--brand-primary);
   }
 
-  .nr-mini-counter {
+  .nr-mob-nav-item.active .material-symbols-rounded {
+    background-color: var(--brand-soft);
+    color: var(--brand-primary);
+    transform: translateY(-1px);
+  }
+
+  .nr-mob-badge {
     position: absolute;
     top: 3px;
-    left: 18%;
-    font-size: 0.62rem;
+    left: 20%;
+    background-color: var(--brand-primary);
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 900;
     padding: 0 5px;
+    border-radius: 99px;
   }
 
-  .nr-workspace {
-    padding-top: 14px;
-    padding-bottom: 84px;
+  /* تحويل الإحصائيات الأربع إلى شبكة 2x2 مدمجة على الجوال */
+  .nr-stats-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
   }
 
-  .nr-footer {
-    padding-bottom: 76px;
+  .nr-stat-card {
+    padding: 11px 12px;
   }
 
-  /* إبقاء تبويبات الاستديو الثلاثة في شريط أفقي مدمج وأنيق على الجوال */
-  .nr-studio-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .nr-stat-icon {
+    width: 36px;
+    height: 36px;
   }
 
-  .nr-studio-tab {
+  .nr-stat-info strong {
+    font-size: 1.18rem;
+  }
+
+  .nr-step-tab {
     flex-direction: column;
     align-items: center;
     text-align: center;
@@ -1992,33 +2267,31 @@ button:active {
     padding: 10px 4px;
   }
 
-  .nr-tab-labels small,
-  .nr-tab-status-icon {
+  .nr-step-text small,
+  .nr-step-lock-icon {
     display: none;
   }
 
-  .nr-tab-labels strong {
+  .nr-step-text strong {
     font-size: 0.74rem;
   }
 
-  .nr-studio-body,
-  .nr-panel-card {
+  .nr-workspace {
+    padding-top: 12px;
+    padding-bottom: 84px;
+  }
+
+  .nr-footer {
+    padding-bottom: 76px;
+  }
+
+  .nr-surface-card,
+  .nr-studio-body {
     padding: 14px;
   }
 
   .nr-rich-editor {
-    min-height: 340px;
+    min-height: 330px;
     padding: 14px;
-    font-size: 1rem;
-  }
-
-  .nr-scratchpad-actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .nr-pane-footer .nr-btn,
-  .nr-publish-actions,
-  .nr-publish-actions .nr-btn {
-    width: 100%;
   }
 }
